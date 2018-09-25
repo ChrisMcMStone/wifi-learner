@@ -1,0 +1,5 @@
+RESET
+ASSOC(RSNE=cc)
+E2
+E4
+DELAY
