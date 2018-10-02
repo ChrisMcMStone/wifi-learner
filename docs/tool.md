@@ -18,21 +18,25 @@ Where:
 - `pre-shared key` is the passcode for the network
 - `query_mode` is one of `file` or `socket` (see further details below)
 
-Currently the tool only supports manual querying. These queries should be new-line separated in the file named `queries`. An example has been provided. 
+Currently the tool only supports `file` mode (i.e. manual querying). These queries should be new-line separated in the file named `queries`. An example has been provided. 
 
 ## Query Formatting
 
-Supported input messages are listed below. Some of these messages support parameters, which should be formatted as `message_type(|param_tag=value|...)`
+Supported input messages are listed below. Some of these messages support parameters, which should be formatted as:
 
-For example: **E2(|RSNE=cc|MIC=F|)**
+ `message_type(|param_tag=value|...)`
+
+**For example:** 
+
+`E2(|RSNE=cc|MIC=F|)`
 
 The set of supported messages are:
 
-- **DELAY**
-- **DATA**
-- **ENC_DATA**
-- **ASSOC(|param=...|)** where **param** can only be **RSNE**
-- **C(|param=...|)** where **param** can be any of the values in the table below.
+- `DELAY`
+- `DATA`
+- `ENC_DATA`
+- `ASSOC(|param=...|)` where `param` can only be `RSNE`
+- `E2(|param=...|)` or `E4(|param=...|)` where `param` can be any of the values in the table below.
 
 | Parameter | Tag | Values | Description |
 --------------|------|---------|---------------
