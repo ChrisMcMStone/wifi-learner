@@ -140,7 +140,7 @@ if __name__ == '__main__':
             wrpipe.close()
             try:
                 if mode == "file":
-                    with open("queries.txt", "r") as f:
+                    with open("queries", "r") as f:
                         for query in f:
                             query = query.strip()
                             if query == "END":
