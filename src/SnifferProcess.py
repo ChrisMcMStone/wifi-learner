@@ -1,8 +1,6 @@
 import cPickle,os,sys,time,subprocess
 from select import select
-from scapy.all import *
-import binascii
-
+import scapy.all
 
 def sniff(sock, rdpipe, wrpipe, lfilter):
 
