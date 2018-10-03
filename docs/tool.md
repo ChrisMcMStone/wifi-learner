@@ -1,12 +1,12 @@
 # Usage and Instructions
 
-**Note, currently the tool only supports manual querying. I am in the process of improving the usability of the code that handles interaction with the learning tool (LearnLib). Watch this space.**
+**Note:** currently the tool only supports manual querying. I am in the process of improving the usability of the code that handles interaction with the learning tool (LearnLib). Watch this space.**
 
 ## Requirements
 
 **Packages**: pycrypto-2.6.1 scapy-2.4.0 pycryptodomex-3.4.5
 
-**Hardware**: Two wireless interfaces that support monitor mode.
+**Hardware**: Two wireless interfaces that support monitor mode. This is required for concurrent sniffing and injection.
 
 ## Usage
 
