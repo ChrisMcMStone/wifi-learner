@@ -202,7 +202,7 @@ def query(sul, cmd):
         sul.send(message2)
 
     elif cmd == 'E4_ENC_DATA':
-        message4 = sul.eapol.buildFrame4(sul.ReplayCounter)
+        message4 = sul.eapol.buildFrame4(ReplayCounter=sul.ReplayCounter)
         sul.send(message4)
         query(sul, "ENC_DATA")
 
@@ -258,16 +258,22 @@ def query(sul, cmd):
         sul.send(message4)
 
     elif cmd == 'ENC_DATA':
+        # ep = Dot11(addr1 = sul.bssid, addr2 = sul.staMac, addr3 = sul.bssid)
+        # ep = ep/sul.queries['DHCPDisc']
+        # #sul.sendEncryptedFrame(sul.queries['DHCPDisc'], addr1, addr2, addr3)
+        # sul.send_ccmp(ep)
+
+        # ep = Dot11(addr1 = sul.bssid, addr2 = sul.staMac, addr3 = "ff:ff:ff:ff:ff:ff")
+        # ep = ep/sul.queries['ARP']
+        # # sul.sendEncryptedFrame(sul.queries['ARP'], addr1, addr2, addr3)
+        # sul.send_ccmp(ep)
         addr1 = sul.bssid
         addr2 = sul.staMac
-        addr3 = sul.bssid
-        sul.sendEncryptedFrame(sul.queries['DHCPDisc'], addr1, addr2, addr3)
-        sul.sendEncryptedFrame(sul.queries['DHCPDisc'], addr1, addr2, addr3)
-        sul.sendEncryptedFrame(sul.queries['DHCPDisc'], addr1, addr2, addr3)
+        # addr3 = sul.bssid
+        # sul.sendEncryptedFrame(sul.queries['DHCPDisc'], addr1, addr2, addr3)
         addr3 = "ff:ff:ff:ff:ff:ff"
         sul.sendEncryptedFrame(sul.queries['ARP'], addr1, addr2, addr3)
-        sul.sendEncryptedFrame(sul.queries['ARP'], addr1, addr2, addr3)
-        sul.sendEncryptedFrame(sul.queries['ARP'], addr1, addr2, addr3)
+
         response = query(sul, "DELAY")
         if "TIMEOUT" in response:
             response = query(sul, "DELAY")

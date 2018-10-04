@@ -61,6 +61,29 @@ class SULState:
 
         self.sc_send = self.sc_send + 1
         sendp(packet, iface=self.iface, verbose=0, count=count)
+
+    def send_ccmp(self, payload):
+        self.PN[5] += 1
+        x = Ccmp()
+        cipher = AES.new(self.eapol.tk, AES.MODE_ECB)
+        p = RadioTap()/payload
+        p.SC = (self.sc_send << 4)
+        p.subtype = 0
+        p.type = "Data"
+        p.FCfield = 0x41
+        enc_packet = x.encryptCCMP(p, cipher, self.PN, False)
+            ## Flip FCField bits accordingly
+        if enc_packet[Dot11].FCfield == 1L:
+            enc_packet[Dot11].FCfield = 65L
+        elif enc_packet[Dot11].FCfield == 2L:
+            enc_packet[Dot11].FCfield = 66L
+
+        self.sc_send = self.sc_send + 1
+        print enc_packet.summary()
+        print enc_packet.show()
+        sendp(enc_packet, iface=self.iface, verbose=0, count=1)
+
+
                 
     def sendEncryptedFrame(self, payload, addr1, addr2, addr3, count=1):  
 
@@ -68,7 +91,7 @@ class SULState:
         a2 = bytearray.fromhex(addr2.replace(':', ''))
         a3 = bytearray.fromhex(addr3.replace(':', ''))
 
-        self.PN[5] += 1
+        #self.PN[5] += 1
         
         # Set up CCMP header
         # Assumes no more than 255 data frames will be sent (for simplicity)
@@ -100,14 +123,14 @@ class SULState:
         for i in range(6): # Address 2
             nonce[i+1] = a2[i]
             nonce[i+7] = self.PN[i]
-	
-        cipher = dAES.new(str(self.eapol.tk), AES.MODE_CCM, str(nonce), mac_len=8, assoc_len=22)
+
+        cipher = dAES.new(self.eapol.tk, AES.MODE_CCM, str(nonce), mac_len=8, assoc_len=22)
         cipher.update(str(aad))
         encrypted_payload = cipher.encrypt(str(payload))
         mic = cipher.digest()
 
         packet = RadioTap() / Dot11() / Raw(str(ccmpHeader)) / Raw(str(encrypted_payload)) / Raw(str(mic))
-        packet.SC = 0
+        packet.SC = (self.sc_send << 4)
         packet.addr1 = addr1
         packet.addr2 = addr2
         packet.addr3 = addr3
