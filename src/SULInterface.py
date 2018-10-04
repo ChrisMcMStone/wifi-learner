@@ -130,10 +130,11 @@ def query(sul, cmd):
 
     if "ASSOC" in cmd:
         if(len(cmd) > 5):
-            resp, t, sc = reset(sul, cmd[11:-1])
+            resp, t, sc = assoc(sul, cmd[11:-1])
         else:
-            resp, t, sc = reset(sul)
+            resp, t, sc = assoc(sul)
         if "ACCEPT" in resp:
+            sul.last_time_receive = t
             # TODO Might need to force wait for start of handshake
             return query(sul, "DELAY")
         else:
@@ -307,7 +308,7 @@ def query(sul, cmd):
     return query(sul, "DELAY")
     
 
-def reset(sul, rsn=None):
+def assoc(sul, rsn=None):
 
     # Deauthenticate previously associated MAC to free up memory
     sul.send(sul.queries["Deauth"], count=5)
