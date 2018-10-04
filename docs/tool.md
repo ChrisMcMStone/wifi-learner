@@ -10,13 +10,16 @@
 
 ## Usage
 
-`sudo python Launcher.py -i <inject_interface>, -t <sniff_interface> -s <ssid> -p <pre-shared key> -m query_mode [-g gateway IP]`
+`sudo python Launcher.py -i <inject_interface>, -t <sniff_interface> -s <ssid> -p <pre-shared key> -m query_mode [-g gateway_IP]`
 
-Where:
+Required:
 - `inject_interface` and `sniff_interfaces` are the names of two wireless monitor-mode-enabled interfaces
 - `ssid` is the SSID of the Access Point being tested
 - `pre-shared key` is the passcode for the network
 - `query_mode` is one of `file` or `socket` (see further details below)
+
+Optional:
+- `gateway_IP` specify IP of AP or gateway to use when eliciting encrypted data response (ARP, DHCP)
 
 Currently the tool only supports `file` mode (i.e. manual querying). These queries should be new-line separated in the file named `queries`. An example has been provided. 
 

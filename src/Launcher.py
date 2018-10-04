@@ -2,6 +2,7 @@
 
 import getopt
 import logging
+import random
 import os
 import socket
 import signal
@@ -41,7 +42,7 @@ def getRSNInfo(p):
 
 def set_up_sul():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hi:t:s:p:c:m:g:")
+        opts, args = getopt.getopt(sys.argv[1:], "hi:t:s:p:m:g:")
     except getopt.GetoptError, e:
         print str(e)
         showhelp()
@@ -58,30 +59,34 @@ def set_up_sul():
     ssid = opts.get('s')
     psk = opts.get('p')
     mode = opts.get('m')
-    channel = int(opts.get('c'))
 
     if 'g' not in opts:
         gateway = '192.168.0.1'
     else:
         gateway = opts.get('g')
 
+    beacon_sniff = True
     # Sniff for Beacons to determine channel and RSNinfo
-    while(True):
-        p = sniff(count=1, iface=sniff_iface)[0]
-        if(p is None or len(p) == 0):
-            continue
-        if ((p.haslayer(dot11.Dot11Beacon) or
-                p.haslayer(dot11.Dot11ProbeResp)) and p[dot11.Dot11Elt].info == ssid):
-            try:
-                rsnInfo = getRSNInfo(p)
-                bssid = p[dot11.Dot11].addr3
-                if 'c' not in opts:
+    while beacon_sniff:
+        channel = random.randrange(1,15)
+        os.system("iw dev %s set channel %d" % (sniff_iface, channel))
+        ps = sniff(timeout=0.1, iface=sniff_iface)
+        for p in ps:
+            if(p is None or len(p) == 0):
+                continue
+            if ((p.haslayer(dot11.Dot11Beacon) or
+                    p.haslayer(dot11.Dot11ProbeResp)) and p[dot11.Dot11Elt].info == ssid):
+                try:
+                    rsnInfo = getRSNInfo(p)
+                    bssid = p[dot11.Dot11].addr3
                     channel = int(ord(p[dot11.Dot11Elt:3].info))
                     os.system("iwconfig %s channel %d" %
-                              (sniff_iface, channel))
-                break
-            except TypeError:
-                continue
+                                (sniff_iface, channel))
+                    os.system("iwconfig %s channel %d" %
+                                (inject_iface, channel))
+                    beacon_sniff = False
+                except TypeError:
+                    continue
 
     print "Detected beacon from %s on channel %d..." % (ssid, channel)
     print "Sniffer MAC address: %s" % str2mac(
