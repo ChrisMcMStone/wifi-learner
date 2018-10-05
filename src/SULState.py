@@ -5,9 +5,11 @@ from EAPOLState import EAPOLState
 from Crypto.Cipher import AES as dAES
 from Cryptodome.Cipher import AES
 from ccmp import Ccmp
+import time
+import SULInterface
 # from tkip import Tkip
 # from mytkip import TKIP_encr
-import utils
+import utils, os
 
 class SULState:
 
@@ -22,7 +24,6 @@ class SULState:
         self.last_sc_receive = -1
         self.last_time_receive = 0.0
         self.maxAssociateAttempts = 10
-        self.eapol = None
         self.Anonce = '00' * 32
         self.ReplayCounter = '00' * 8
         self.gtk_kde = None
@@ -32,11 +33,17 @@ class SULState:
         self._buildQueries()
         self.PN = bytearray('\x00\x00\x00\x00\x00\x00')
         self.TIMEOUT = 2.0
+        # Initialize state of handshake for supplicant
+        self.eapol = EAPOLState(self.RSNinfo, self.psk, \
+                self.ssid, self.staMac, self.bssid)
+
 
     def reset(self):
         self.sc_send = 0
-        self.last_sc_receive = -1
-        self.last_time_receive = 0.0
+        #self.last_sc_receive = -1
+        # Deauthenticate previously associated MAC to free up memory
+        self.send(self.queries["Deauth"], count=5)
+        self.last_time_receive = time.time()
         self.Anonce = '00' * 32
         self.ReplayCounter = '00' * 8
         self.gtk_kde = None
@@ -124,7 +131,7 @@ class SULState:
             nonce[i+1] = a2[i]
             nonce[i+7] = self.PN[i]
 
-        cipher = dAES.new(self.eapol.tk, AES.MODE_CCM, str(nonce), mac_len=8, assoc_len=22)
+        cipher = dAES.new(str(self.eapol.tk), AES.MODE_CCM, str(nonce), mac_len=8, assoc_len=22)
         cipher.update(str(aad))
         encrypted_payload = cipher.encrypt(str(payload))
         mic = cipher.digest()

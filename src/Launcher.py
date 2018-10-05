@@ -156,7 +156,7 @@ if __name__ == '__main__':
 
                 elif mode == "socket":
                     HOST = '127.0.0.1'
-                    PORT = 50008
+                    PORT = 4444
                     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                     s.bind((HOST, PORT))

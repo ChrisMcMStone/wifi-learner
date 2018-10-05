@@ -6,13 +6,16 @@ from EAPOLState import EAPOLState
 from Crypto.Cipher import AES
 import cPickle,os,sys,time,subprocess
 
+
+# Sniff for pairwise/unicast traffic
 def psniff(sul, pf=None):
+    sp = sul.sniffPipe
     stoptime = time.time()+sul.TIMEOUT
     while stoptime > time.time():
         # Read one frame from sniff buffer
-        inmask = [sul.sniffPipe]
+        inmask = [sp]
         inp, out, err = select(inmask,[],[], 0)
-        r = cPickle.load(sul.sniffPipe)
+        r = cPickle.load(sp)
         if not pf:
             return r
         elif pf and pf(r):
@@ -21,6 +24,7 @@ def psniff(sul, pf=None):
             continue
     return None
 
+# Sniff for broadcast traffic
 def bsniff(sul, pf=None, delayTime=5):
     stoptime = time.time()+delayTime
     pks = []
@@ -136,7 +140,8 @@ def query(sul, cmd):
         if "ACCEPT" in resp:
             sul.last_time_receive = t
             # TODO Might need to force wait for start of handshake
-            return query(sul, "DELAY")
+            resp, t, sc = query(sul, "DELAY")
+            return "ACCEPT+" + resp, t, sc
         else:
             return resp, t, sc
 
@@ -269,8 +274,8 @@ def query(sul, cmd):
         # sul.send_ccmp(ep)
         addr1 = sul.bssid
         addr2 = sul.staMac
-        # addr3 = sul.bssid
-        # sul.sendEncryptedFrame(sul.queries['DHCPDisc'], addr1, addr2, addr3)
+        addr3 = sul.bssid
+        sul.sendEncryptedFrame(sul.queries['DHCPDisc'], addr1, addr2, addr3)
         addr3 = "ff:ff:ff:ff:ff:ff"
         sul.sendEncryptedFrame(sul.queries['ARP'], addr1, addr2, addr3)
 
@@ -316,16 +321,7 @@ def query(sul, cmd):
 
 def assoc(sul, rsn=None):
 
-    # Deauthenticate previously associated MAC to free up memory
-    sul.send(sul.queries["Deauth"], count=5)
-
-    # Reset sequence numbers etc
-    sul.reset()
-
-    # Initialize state of handshake for supplicant
-    sul.eapol = EAPOLState(sul.RSNinfo, sul.psk, \
-            sul.ssid, sul.staMac, sul.bssid)
-
+    sul.last_sc_receive = 0
     retryCount = 0
 
     print "$ Attempting to associate with AP."
