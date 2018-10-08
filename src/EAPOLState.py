@@ -148,9 +148,10 @@ class EAPOLState:
 		if(messageNo == 2):
 			if rsnInfo == None: 
 				rsnInfo = self.RSNinfo
-				RSN_KEY += '00' + \
-					hex((len(rsnInfo)/2)+2)[2:] \
-					+ '3014' + rsnInfo
+
+			RSN_KEY += '00' + \
+				hex((len(rsnInfo)/2)+2)[2:] \
+				+ '3014' + rsnInfo
 		else:
 			RSN_KEY += '0000'
 
