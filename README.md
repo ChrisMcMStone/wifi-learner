@@ -8,3 +8,4 @@ Go to https://chrismcmstone.github.io/wifi-learner/ for more details.
 - ~~Fix first message timestamp~~
 - ~~Change pycrypto requirement to 2.7a1~~
 - Fix crypto
+- Add MAC address randomisation on reset
