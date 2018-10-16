@@ -91,11 +91,6 @@ def query(sul, cmd):
         else:
             return resp, t, sc
 
-    elif cmd == 'E2_ENC_DATA':
-        message2 = sul.eapol.buildFrame2(Anonce=sul.Anonce, ReplayCounter=sul.ReplayCounter)
-        sul.send(message2)
-        query(sul, "ENC_DATA")
-
     elif 'E2' in cmd:
         if cmd == 'E2':
             message2 = sul.eapol.buildFrame2(Anonce=sul.Anonce, ReplayCounter=sul.ReplayCounter)
@@ -141,11 +136,6 @@ def query(sul, cmd):
                     ReplayCounter=rc, invalidMic=invalidMic, \
                     rsnInfo=rsne, kd=kd, cipher=cipher, kf=kf)
         sul.send(message2)
-
-    elif cmd == 'E4_ENC_DATA':
-        message4 = sul.eapol.buildFrame4(ReplayCounter=sul.ReplayCounter)
-        sul.send(message4)
-        query(sul, "ENC_DATA")
 
     elif 'E4' in cmd:
         if cmd == 'E4':
@@ -197,6 +187,9 @@ def query(sul, cmd):
             message4 = sul.eapol.buildFrame4(rc, Snonce=nonce, invalidMic=invalidMic, \
                     rsnInfo=rsne, kd=kd, cipher=cipher, kf=kf)
         sul.send(message4)
+
+    elif cmd == 'ENC_DATA':
+        return query(sul, "ENC_DATA_AES")
 
     elif cmd == 'ENC_DATA_AES':
         # Try both a DHCP discovery and ARP to elicit encrypted response
