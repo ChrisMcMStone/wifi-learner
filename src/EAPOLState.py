@@ -6,6 +6,7 @@ import os
 from Crypto.Cipher import AES
 from Crypto.Util import Counter
 
+# Maintains state of and constructs EAPOL messages in 4-Way handshake
 class EAPOLState:
     def __init__(self, RSNinfo, psk, ssid, staMac, apMac):
 

@@ -204,13 +204,11 @@ def query(sul, cmd):
 
     elif cmd == 'ENC_DATA_TKIP':
         # Try both a DHCP discovery and ARP to elicit encrypted response
-        ep = Dot11(addr1 = sul.bssid, addr2 = sul.staMac, addr3 = sul.bssid)
-        ep = ep/sul.queries['DHCPDisc']
-        sul.sendTKIPFrame(ep, addr1, addr2, addr3)
-
-        ep2 = Dot11(addr1 = sul.bssid, addr2 = sul.staMac, addr3 = "ff:ff:ff:ff:ff:ff")
-        ep2 = ep2/sul.queries['ARP']
+        ep2 = sul.queries['ARP']
         sul.sendTKIPFrame(ep2, addr1 = sul.bssid, addr2=sul.staMac, addr3 = "ff:ff:ff:ff:ff:ff")
+
+        ep = sul.queries['DHCPDisc']
+        sul.sendTKIPFrame(ep, sul.bssid, sul.staMac, sul.bssid)
 
         response = query(sul, "DELAY")
         return response

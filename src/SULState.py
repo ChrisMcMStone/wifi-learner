@@ -12,26 +12,31 @@ import utility.utils, os
 class SULState:
 
     def __init__(self, iface, ssid, psk, bssid, rsnInfo, gateway):
-        self.iface = iface
+        self.iface = iface     
         self.sniffPipe = None
+        # Set MAC addresses
         self.ssid = ssid
         self.bssid = bssid
         self.staMac = str2mac(get_if_raw_hwaddr(self.iface)[1])
+        # Pre-shared key
         self.psk = psk
+        # Sequence counters
         self.sc_send = 0
+        # Send and recieve times
         self.last_sc_receive = -1
         self.last_time_receive = 0.0
-        self.maxAssociateAttempts = 10
+        # Required for EAPOL frames
         self.Anonce = '00' * 32
         self.ReplayCounter = '00' * 8
-        self.gtk_kde = None
         self.RSNinfo = rsnInfo[:36] + '0000'
         self.RSNinfoReal = rsnInfo[:36] + '0000'
+        # Required for ARP requests
         self.gateway = gateway
         lastoctindex = gateway.rfind('.')+1
         self.ipsrc = gateway[:lastoctindex] + \
             str(random.randint(int(gateway[lastoctindex:]),250))
         self._buildQueries()
+        # Timeout for waiting for responses
         self.TIMEOUT = 2.0
         # Initialize state of handshake for supplicant
         self.eapol = EAPOLState(self.RSNinfo, self.psk, \
@@ -51,6 +56,7 @@ class SULState:
         self.ReplayCounter = '00' * 8
         self.gtk_kde = None
 
+    # Send raw packet
     def send(self, packet, count=1, addr1=None, addr2=None, addr3=None):  
         packet.SC = (self.sc_send << 4)
         if not addr1:
@@ -69,7 +75,7 @@ class SULState:
         self.sc_send = self.sc_send + 1
         sendp(packet, iface=self.iface, verbose=0, count=count)
 
-                
+    # Send frame encrypted with AES-CCMP               
     def sendAESFrame(self, payload, addr1, addr2, addr3, count=1):  
 
         dot11 = Dot11(addr1=addr1, addr2=addr2, addr3=addr3, FCfield=0x41, type=0x2, subtype=0x0)
@@ -79,6 +85,7 @@ class SULState:
         self.sc_send = self.sc_send + 1
         sendp(packet, iface=self.iface, verbose=0, count=1)
 
+    # Send frame encrypted with TKIP
     def sendTKIPFrame(self, payload, addr1, addr2, addr3, count=1):  
 
         # Retrieve the ARP Request message and generate the headers.
@@ -87,17 +94,19 @@ class SULState:
 
         self.sc_send = self.sc_send + 1
         sendp(packet, iface=self.iface, verbose=0, count=1)
-    
+
+    # Decrypt response with AES-CCMP
     def decryptTrafficAES(self, p):
         plaintext = self.aesHandler.decapsulate(p, self.eapol.tk)
         return self.aesHandler.deBuilder(p, plaintext, False)
 
+    # Decrypt response with TKIP
     def decryptTrafficTKIP(self, p):
         plaintext = self.tkipHandler.decapsulate(p, self.eapol.tk, self.eapol.mmitxk)
         return self.tkipHandler.deBuilder(p, plaintext, False)
 
     def _buildQueries(self):
-
+        # Construct all the static frames that are supported by learner.
         self.queries = {\
             'AssoReq':RadioTap() / Dot11() / \
                    Dot11AssoReq(cap="short-slot+ESS+privacy+short-preamble") / \
@@ -135,7 +144,8 @@ class SULState:
             \
             'ARP':LLC() / SNAP() / ARP(op='who-has', pdst=self.gateway, psrc= self.ipsrc, hwsrc=self.staMac, hwdst=self.bssid)
             }
-
+        
+        # Hex rep of all possible RSN values (ciphersuites)
         self.rsnvals = {'tc':'0100000fac020100000fac040100000fac02', \
             'tt':'0100000fac020100000fac020100000fac02', \
             'cc':'0100000fac040100000fac040100000fac02', \

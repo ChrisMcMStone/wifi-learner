@@ -1,15 +1,6 @@
 #!/usr/bin/env python
 
-import getopt
-import logging
-import random
-import os
-import socket
-import signal
-import subprocess
-import sys
-import time
-import traceback
+import getopt, logging, random, os, socket, signal, subprocess, sys, time, traceback
 from binascii import b2a_hex
 from multiprocessing import Process
 import scapy.layers.dot11 as dot11
@@ -18,12 +9,14 @@ import SULInterface
 from SnifferProcess import sniff as msniff
 from SULState import SULState
 
-
+# Show launch parameters
+# TODO extend this
 def showhelp():
     print "\nSyntax: ./Launcher.py -i <inject_interface>, -t <sniff_interface> " \
         " -s <ssid> -p <pre-shared key> -m query_mode [-g gateway IP]\n"
 
-
+# Extract the 'Robust Security Network' info element from 
+# the AP Beacons. This contains the supported cipher suites (AES, TKIP, WEP)
 def getRSNInfo(p):
     if(p.haslayer(dot11.Dot11Beacon)):
         p = p.getlayer(dot11.Dot11Beacon)
@@ -39,7 +32,8 @@ def getRSNInfo(p):
         i += 1
         p = p.getlayer(0)
 
-
+# Parse command line arguments, initialise required objects and 
+# set WiFi interfaces to channel target AP is operating on. 
 def set_up_sul():
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hi:t:s:p:m:g:")
@@ -96,11 +90,16 @@ def set_up_sul():
 
     return sul, mode, sniff_iface
 
-
+# Pass on incoming abstract queries to the SUL. Return abstract string
+# representation of response + timestamp
 def query_execute(sul, query):
 
     if "RESET" in query:
         sul.reset()
+        # Comment out 3 lines below this to enforce reset before association
+        resp = ""
+        while "ACCEPT" not in resp:
+            resp, t, sc = SULInterface.assoc(sul)
         return "DONE"
     else:
         p, t, sc = SULInterface.query(sul, query)
@@ -133,6 +132,7 @@ if __name__ == '__main__':
     pid = 1
     try:
         pid = os.fork()
+        # This process sniffs for WiFi frames, writing them into a shared buffer
         if pid == 0:
             try:
                 msniff(s, rdpipe, wrpipe, None)
@@ -144,6 +144,8 @@ if __name__ == '__main__':
         else:
             wrpipe.close()
             try:
+                # If we are executing a set of state queries, read from file
+                # and run one-by-one.
                 if mode == "file":
                     with open("queries", "r") as f:
                         for query in f:
@@ -155,6 +157,7 @@ if __name__ == '__main__':
                             print "RESPONSE: " + response
 
                 elif mode == "socket":
+                    # Set up TCP socket with state machine learner software
                     HOST = '127.0.0.1'
                     PORT = 4444
                     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -163,16 +166,20 @@ if __name__ == '__main__':
                     s.listen(1)
                     conn, addr = s.accept()
                     print 'Connected by', addr
+                    # Run endless loop receiving and forwarding on query/responses
                     while 1:
                         data = conn.recv(1024)
                         if not data:
                             break
                         query = data.strip()
+                        # The learner can modify the timeout value which this 
+                        # program with use to wait for responses. 
                         if "TIMEOUT_MODIFY" in query:
                             print "MODIFYING TIMEOUT VALUE to " + query[15:]
                             sul.TIMEOUT = float(query[15:])
                             conn.sendall("DONE"+'\n')
                             continue
+                        
                         print "QUERY: " + query
                         response = query_execute(sul, query)
                         print "RESPONSE: " + response
