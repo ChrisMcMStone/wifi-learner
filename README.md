@@ -7,5 +7,5 @@ Go to https://chrismcmstone.github.io/wifi-learner/ for more details.
 - ~~Fix channel detection issue~~
 - ~~Fix first message timestamp~~
 - ~~Change pycrypto requirement to 2.7a1~~
-- Fix crypto
+- ~~Fix crypto~~
 - Add MAC address randomisation on reset

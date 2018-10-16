@@ -2,15 +2,13 @@ from scapy.all import *
 import struct
 from binascii import *
 from EAPOLState import EAPOLState
-from Crypto.Cipher import AES as dAES
-from Cryptodome.Cipher import AES
-from ccmp import Ccmp
+from crypto.HandleTKIP import *
+from crypto.HandleAES import *
 import time
 import SULInterface
-# from tkip import Tkip
-# from mytkip import TKIP_encr
-import utils, os
+import utility.utils, os
 
+# Maintains the state for the System Under Learning.
 class SULState:
 
     def __init__(self, iface, ssid, psk, bssid, rsnInfo, gateway):
@@ -30,13 +28,18 @@ class SULState:
         self.RSNinfo = rsnInfo[:36] + '0000'
         self.RSNinfoReal = rsnInfo[:36] + '0000'
         self.gateway = gateway
+        lastoctindex = gateway.rfind('.')+1
+        self.ipsrc = gateway[:lastoctindex] + \
+            str(random.randint(int(gateway[lastoctindex:]),250))
         self._buildQueries()
-        self.PN = bytearray('\x00\x00\x00\x00\x00\x00')
         self.TIMEOUT = 2.0
         # Initialize state of handshake for supplicant
         self.eapol = EAPOLState(self.RSNinfo, self.psk, \
                 self.ssid, self.staMac, self.bssid)
-
+        
+        # Initialize crypto handlers
+        self.aesHandler = HandleAES()
+        self.tkipHandler = HandleTKIP()
 
     def reset(self):
         self.sc_send = 0
@@ -47,9 +50,6 @@ class SULState:
         self.Anonce = '00' * 32
         self.ReplayCounter = '00' * 8
         self.gtk_kde = None
-
-    # Association Filter
-    # lfilter=lambda x: x.haslayer(Dot11) and x.addr1 == self.staMac and x.getlayer(Dot11).type != 1)
 
     def send(self, packet, count=1, addr1=None, addr2=None, addr3=None):  
         packet.SC = (self.sc_send << 4)
@@ -69,123 +69,33 @@ class SULState:
         self.sc_send = self.sc_send + 1
         sendp(packet, iface=self.iface, verbose=0, count=count)
 
-    def send_ccmp(self, payload):
-        self.PN[5] += 1
-        x = Ccmp()
-        cipher = AES.new(self.eapol.tk, AES.MODE_ECB)
-        p = RadioTap()/payload
-        p.SC = (self.sc_send << 4)
-        p.subtype = 0
-        p.type = "Data"
-        p.FCfield = 0x41
-        enc_packet = x.encryptCCMP(p, cipher, self.PN, False)
-            ## Flip FCField bits accordingly
-        if enc_packet[Dot11].FCfield == 1L:
-            enc_packet[Dot11].FCfield = 65L
-        elif enc_packet[Dot11].FCfield == 2L:
-            enc_packet[Dot11].FCfield = 66L
-
-        self.sc_send = self.sc_send + 1
-        print enc_packet.summary()
-        print enc_packet.show()
-        sendp(enc_packet, iface=self.iface, verbose=0, count=1)
-
-
                 
-    def sendEncryptedFrame(self, payload, addr1, addr2, addr3, count=1):  
+    def sendAESFrame(self, payload, addr1, addr2, addr3, count=1):  
 
-        a1 = bytearray.fromhex(addr1.replace(':', ''))
-        a2 = bytearray.fromhex(addr2.replace(':', ''))
-        a3 = bytearray.fromhex(addr3.replace(':', ''))
-
-        #self.PN[5] += 1
-        
-        # Set up CCMP header
-        # Assumes no more than 255 data frames will be sent (for simplicity)
-        ccmpHeader = bytearray(8)
-        ccmpHeader[0] = self.PN[5]
-        ccmpHeader[1] = self.PN[4]
-        ccmpHeader[2] = 0b00000000 # rsv
-        ccmpHeader[3] = 0b00100000 # keyid
-        ccmpHeader[4] = self.PN[3]
-        ccmpHeader[5] = self.PN[2]
-        ccmpHeader[6] = self.PN[1]
-        ccmpHeader[7] = self.PN[0]
-
-        # Construct AAD required for MIC
-        aad = bytearray(24)
-        aad[0] = 0b00001000 # Frame control bits
-        aad[1] = 0b01000001
-
-        for i in range(6): # MAC Addresses
-            aad[i+2] = a1[i]
-            aad[i+8] = a2[i]
-            aad[i+14] = a3[i]
-
-        # 2 bytes for Sequence Control Field left at 0, TODO: deal with fragment No
-        # 2 bytes for QoS Control field left at 0
-
-        nonce = bytearray(13)
-        # Nonce Flags (Priority, Management, Reserved) left at 0
-        for i in range(6): # Address 2
-            nonce[i+1] = a2[i]
-            nonce[i+7] = self.PN[i]
-
-        cipher = dAES.new(str(self.eapol.tk), AES.MODE_CCM, str(nonce), mac_len=8, assoc_len=22)
-        cipher.update(str(aad))
-        encrypted_payload = cipher.encrypt(str(payload))
-        mic = cipher.digest()
-
-        packet = RadioTap() / Dot11() / Raw(str(ccmpHeader)) / Raw(str(encrypted_payload)) / Raw(str(mic))
-        packet.SC = (self.sc_send << 4)
-        packet.addr1 = addr1
-        packet.addr2 = addr2
-        packet.addr3 = addr3
-        packet.subtype = 0
-        packet.type = "Data"
-        packet.FCfield = 0x41
+        dot11 = Dot11(addr1=addr1, addr2=addr2, addr3=addr3, FCfield=0x41, type=0x2, subtype=0x0)
+        dot11wep = self.aesHandler.encapsulate(str(payload), self.eapol.tk , addr1, addr2, addr3)
+        packet = RadioTap()/dot11/dot11wep
 
         self.sc_send = self.sc_send + 1
-        #packet.show()
+        sendp(packet, iface=self.iface, verbose=0, count=1)
+
+    def sendTKIPFrame(self, payload, addr1, addr2, addr3, count=1):  
+
+        # Retrieve the ARP Request message and generate the headers.
+        dot11 = Dot11(addr1=addr1, addr2=addr2, addr3=addr3, FCfield='wep+to-DS', type='Data', subtype=0)
+        dot11wep = self.tkipHandler.encapsulate(str(payload), addr2, addr1, 0, self.eapol.mmirxk , self.eapol.tk)
+
+        self.sc_send = self.sc_send + 1
         sendp(packet, iface=self.iface, verbose=0, count=1)
     
-    def decryptTrafficCcmp(self, p):
-        x = Ccmp()
-        y = AES.new(self.eapol.tk, AES.MODE_ECB)
-        stream, PN = x.decoder(p, y)
-        pckt = x.deBuilder(p, stream, False)
-        return pckt
+    def decryptTrafficAES(self, p):
+        plaintext = self.aesHandler.decapsulate(p, self.eapol.tk)
+        return self.aesHandler.deBuilder(p, plaintext, False)
 
-    # TODO Finish TKIP Support
-    # def decryptTrafficTkip(self, p):
-    #     x = Tkip()
-    #     y = AES.new(self.eapol.tk, AES.MODE_ECB)
-    #     stream = x.decoder(p, y)
-    #     pckt = x.deBuilder(p, stream)
-    #     return pckt
+    def decryptTrafficTKIP(self, p):
+        plaintext = self.tkipHandler.decapsulate(p, self.eapol.tk, self.eapol.mmitxk)
+        return self.tkipHandler.deBuilder(p, plaintext, False)
 
-    # def sendEncTKIP(self, payload, addr1, addr2, addr3):
-    #     ta = bytearray(re.sub(':','', addr1).decode("hex"))
-    #     sa = bytearray(re.sub(':','', addr2).decode("hex"))
-    #     da = bytearray(re.sub(':','', addr3).decode("hex"))
-
-    #     self.PN[5] += 1
-    #     iv = a2b_p("00 00 00 00 00 00")
-    #     alg = TKIP_encr(self.eapol.tk)
-    #     alg.setTA(ta)
-    #     ciphertext = alg.encrypt(payload, iv, sa, da, self.eapol.tkipmic)
-
-    #     packet = RadioTap() / Dot11() / Raw(ciphertext)
-    #     packet.SC = 0
-    #     packet.addr1 = addr1
-    #     packet.addr2 = addr2
-    #     packet.addr3 = addr3
-    #     packet.subtype = 0
-    #     packet.type = "Data"
-    #     packet.FCfield = 0x41
-    #     sendp(packet, iface=self.iface, verbose=0, count=1)
-
-            
     def _buildQueries(self):
 
         self.queries = {\
@@ -221,11 +131,10 @@ class SULState:
             \
             'DHCPDisc':LLC() / SNAP() / IP(src='0.0.0.0', dst='255.255.255.255') / \
                    UDP(dport=67,sport=68) / BOOTP(op=1, chaddr=get_if_raw_hwaddr(self.iface)[1], xid=random.randint(0, 0xFFFFFFFF)) / \
-                   DHCP(options=[('message-type','discover'), ('max_dhcp_size', 1500), ('hostname', 'test'), ('end')]),
+                   DHCP(options=[('message-type','discover'), 'end']),
             \
-            'ARP':LLC() / SNAP() / ARP(pdst=self.gateway, hwsrc=self.staMac)
+            'ARP':LLC() / SNAP() / ARP(op='who-has', pdst=self.gateway, psrc= self.ipsrc, hwsrc=self.staMac, hwdst=self.bssid)
             }
-            #'ARP':LLC() / SNAP() / ARP(op=ARP.who_has, pdst=self.gateway, psrc="192.168.0.1", hwsrc=self.staMac, hwdst=self.bssid)
 
         self.rsnvals = {'tc':'0100000fac020100000fac040100000fac02', \
             'tt':'0100000fac020100000fac020100000fac02', \

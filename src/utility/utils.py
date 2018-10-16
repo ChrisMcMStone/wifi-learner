@@ -4,6 +4,7 @@ from scapy.all import *
 import struct
 from zlib import crc32
 from Crypto.Cipher import AES
+import os
 
 ## Code taken and adapted from https://github.com/beurdouche/tools/blob/master/pyrit/pyrit/cpyrit/
 
@@ -224,15 +225,39 @@ def aes_wrap_key_withpad(kek, plaintext):
         return AES.new(kek).encrypt(QUAD.pack[iv] + plaintext)
     return aes_wrap_key(kek, plaintext, iv)
 
-def test():
-    #test vector from RFC 3394
-    KEK = binascii.unhexlify("000102030405060708090A0B0C0D0E0F")
-    CIPHER = binascii.unhexlify("1FA68B0A8112B447AEF34BD8FB5A7B829D3E862371D2CFE5")
-    PLAIN = binascii.unhexlify("00112233445566778899AABBCCDDEEFF")
-    assert aes_unwrap_key(KEK, CIPHER) == PLAIN
-    assert aes_wrap_key(KEK, PLAIN) == CIPHER
 
+def setBit( value , index ):
+	""" Set the index'th bit of value to 1.
+	"""
+	mask = 1 << index
+	value &= ~mask
+	value |= mask
+	return value
 
+def getBit( value , index ):
+	""" Get the index'th bit of value.
+	"""
+	return (value >> index) & 1
+	
+def getKeyID( id ):
+	""" Get the 8-bit key identifier from an integer.
+	"""
+	assert( 0 <= id <= 3 ), \
+		'The Key ID must be a value between 0 and 3 included.' 
+	keyid = 0x00
+	if id == 1:
+		keyid = setBit( keyid , 6 )
+	if id == 2:
+		keyid = setBit( keyid , 7 )
+	if id == 3:
+		keyid = setBit( keyid , 6 )
+		keyid = setBit( keyid , 7 )
+	return keyid
+	
+def printTerminalLine( character ):
+	""" Print a horizontal line over the full width of the terminal screen.
+	"""
+	os.system( "printf '%*s\n' \"${COLUMNS:-$(tput cols)}\" '' | tr ' ' " + character )
 
 class Packet(object):
     """Class to deal with packet specific tasks"""
@@ -248,7 +273,6 @@ class Packet(object):
 
     def byteRip(self, stream, chop = False, compress = False, order = 'first', output = 'hex', qty = 1):
         """Take a scapy hexstr(str(pkt), onlyhex = 1) and grab based on what you want
-
         chop is the concept of removing the qty based upon the order
         compress is the concept of removing unwanted spaces    
         order is concept of give me first <qty> bytes or gives me last <qty> bytes
@@ -317,7 +341,6 @@ class Packet(object):
 
     def endSwap(self, value):
         """Takes an object and reverse Endians the bytes
-
         Useful for crc32 within 802.11:
         Autodetection logic built in for the following situations:
         Will take the stryng '0xaabbcc' and return string '0xccbbaa'
@@ -368,3 +391,4 @@ class Packet(object):
             return binascii.unhexlify(fcs)
         else:
             return fcs
+	

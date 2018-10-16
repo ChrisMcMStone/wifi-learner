@@ -1,4 +1,4 @@
-import utils
+import utility.utils
 from scapy.all import *
 import struct
 from binascii import *
@@ -24,23 +24,7 @@ def psniff(sul, pf=None):
             continue
     return None
 
-# Sniff for broadcast traffic
-def bsniff(sul, pf=None, delayTime=5):
-    stoptime = time.time()+delayTime
-    pks = []
-    while stoptime > time.time():
-        # Read one frame from sniff buffer
-        inmask = [sul.sniffPipe]
-        inp, out, err = select(inmask,[],[], 0)
-        r = cPickle.load(sul.sniffPipe)
-        if not pf:
-            return r
-        elif pf and pf(r):
-            pks.append(r)
-        else:
-            continue
-    return pks
-
+# Function applied to sniffer
 def _filter(sul, x):
 
     # Packet received after last sent
@@ -72,23 +56,11 @@ def _filter(sul, x):
            (str(x.addr3)[:5] == "33:33") or \
            (str(x.addr1)[:5] == "33:33") or \
            (str(x.addr3) == "ff:ff:ff:ff:ff:ff") or \
-           (str(x.addr1) == "ff:ff:ff:ff:ff:ff")) and \
-           not (x.haslayer(Dot11WEP) and _checkDecryptBroadcast(sul, x)) 
-
-    # if filt:
-        # print "NEW SC = " + str((x.SC >> 4))
-        # print "OLD SC = " + str(lsc)
+           (str(x.addr1) == "ff:ff:ff:ff:ff:ff"))
+           #not (x.haslayer(Dot11WEP) and _checkDecryptBroadcast(sul, x)) 
 
     return filt
 
-# def _checkDecryptBroadcast(sul, p):
-    # x = sul.decryptTrafficCcmp(p)
-    # if(x.haslayer(IP)):
-        # return _isBroadCastIP(x.getlayer(IP).dst)
-
-def _checkDecryptBroadcast(sul, p):
-    x = sul.decryptTrafficCcmp(p)
-    return not x.haslayer(SNAP)
 
 def _isBroadCastIP(ipaddr):
     #Probably broadcast
@@ -99,32 +71,6 @@ def _isBroadCastIP(ipaddr):
         if x >= 224 and x <= 239:
             return True
     return False
-
-def _filterBRD(sul, x):
-
-    # Packet received after last sent
-    # Addressed to multicast or broadcast MAC
-    # Not control frame
-    # Not ATIM frame
-    # Not Action
-    # Not Null frame TODO possibly need to remove this for the iOS testing. 
-
-    filt = x is not None and \
-            x.time > sul.last_time_receive and \
-            x.addr2 == sul.bssid and \
-            ((str(x.addr3)[:8] == "01:00:5e") or \
-            (str(x.addr1)[:8] == "01:00:5e") or \
-            (str(x.addr3)[:5] == "33:33") or \
-            (str(x.addr1)[:5] == "33:33") or \
-            (str(x.addr3) == "ff:ff:ff:ff:ff:ff") or \
-            (str(x.addr1) == "ff:ff:ff:ff:ff:ff") or \
-            (x.haslayer(IP) and _isBroadCastIP(x.getlayer(IP).dst))) and \
-            x.type != 1 and \
-            not (x.type == 0 and x.subtype == 9) and \
-            not (x.type == 0 and x.subtype == 13) and \
-            not (x.type == 2 and x.subtype == 4) 
-
-    return filt
 
 def query(sul, cmd):
 
@@ -141,19 +87,9 @@ def query(sul, cmd):
             sul.last_time_receive = t
             # TODO Might need to force wait for start of handshake
             resp, t, sc = query(sul, "DELAY")
-            return "ACCEPT+" + resp, t, sc
+            return resp, t, sc
         else:
             return resp, t, sc
-
-    elif cmd == 'BRD':
-        responses = bsniff(sul, lambda x: _filterBRD(sul, x))
-        rstring = ""
-        for r in responses:
-            output = genAbstractOutput(sul, r)[0]
-            if output not in rstring:
-                rstring += output + ","
-        rstring = rstring[:-1]
-        return rstring
 
     elif cmd == 'E2_ENC_DATA':
         message2 = sul.eapol.buildFrame2(Anonce=sul.Anonce, ReplayCounter=sul.ReplayCounter)
@@ -262,44 +198,29 @@ def query(sul, cmd):
                     rsnInfo=rsne, kd=kd, cipher=cipher, kf=kf)
         sul.send(message4)
 
-    elif cmd == 'ENC_DATA':
-        # ep = Dot11(addr1 = sul.bssid, addr2 = sul.staMac, addr3 = sul.bssid)
-        # ep = ep/sul.queries['DHCPDisc']
-        # #sul.sendEncryptedFrame(sul.queries['DHCPDisc'], addr1, addr2, addr3)
-        # sul.send_ccmp(ep)
+    elif cmd == 'ENC_DATA_AES':
+        # Try both a DHCP discovery and ARP to elicit encrypted response
+        ep2 = sul.queries['ARP']
+        sul.sendAESFrame(ep2, addr1 = sul.bssid, addr2=sul.staMac, addr3 = "ff:ff:ff:ff:ff:ff")
 
-        # ep = Dot11(addr1 = sul.bssid, addr2 = sul.staMac, addr3 = "ff:ff:ff:ff:ff:ff")
-        # ep = ep/sul.queries['ARP']
-        # # sul.sendEncryptedFrame(sul.queries['ARP'], addr1, addr2, addr3)
-        # sul.send_ccmp(ep)
-        addr1 = sul.bssid
-        addr2 = sul.staMac
-        addr3 = sul.bssid
-        sul.sendEncryptedFrame(sul.queries['DHCPDisc'], addr1, addr2, addr3)
-        addr3 = "ff:ff:ff:ff:ff:ff"
-        sul.sendEncryptedFrame(sul.queries['ARP'], addr1, addr2, addr3)
+        ep = sul.queries['DHCPDisc']
+        sul.sendAESFrame(ep, sul.bssid, sul.staMac, sul.bssid)
 
         response = query(sul, "DELAY")
-        if "TIMEOUT" in response:
-            response = query(sul, "DELAY")
-            print "retrying encrypted data"
-        if "TIMEOUT" in response:
-            response = query(sul, "DELAY")
-            print "retrying encrypted data"
-        if "TIMEOUT" in response:
-            response = query(sul, "DELAY")
-            print "retrying encrypted data"
-        else:
-            return response
+        return response
 
-    # TODO Finish TKIP Support
-    # elif cmd == 'TKIP_DATA':
-    #     addr1 = sul.bssid
-    #     addr2 = sul.staMac
-    #     addr3 = sul.bssid
-    #     sul.sendEncTKIP(sul.queries['ARP'], addr1, addr2, addr3)
-    #     response = query(sul, "DELAY")
-    #     return response
+    elif cmd == 'ENC_DATA_TKIP':
+        # Try both a DHCP discovery and ARP to elicit encrypted response
+        ep = Dot11(addr1 = sul.bssid, addr2 = sul.staMac, addr3 = sul.bssid)
+        ep = ep/sul.queries['DHCPDisc']
+        sul.sendTKIPFrame(ep, addr1, addr2, addr3)
+
+        ep2 = Dot11(addr1 = sul.bssid, addr2 = sul.staMac, addr3 = "ff:ff:ff:ff:ff:ff")
+        ep2 = ep2/sul.queries['ARP']
+        sul.sendTKIPFrame(ep2, addr1 = sul.bssid, addr2=sul.staMac, addr3 = "ff:ff:ff:ff:ff:ff")
+
+        response = query(sul, "DELAY")
+        return response
 
     elif cmd == 'DATA':
         addr1 = sul.bssid
@@ -369,7 +290,7 @@ def assoc(sul, rsn=None):
 
     return "TIMEOUT", 0, 0
 
-
+# Parse packet to construct abstract string to feed back to learner
 def genAbstractOutput(sul, p):
 
     # If no response, i.e. TIMEOUT
@@ -382,22 +303,14 @@ def genAbstractOutput(sul, p):
     if p.haslayer(Dot11WEP):
         dec = None
         try:
-            dec = sul.decryptTrafficCcmp(p)
+            dec = sul.decryptTrafficAES(p)
             print dec.summary()
-            if dec.haslayer(SNAP) or "313233" in b2a_hex(str(dec.getlayer(Raw))):
-                print str(b2a_hex(str(dec.getlayer(Raw))))
-                pstring = "CCMP_DATA"
-            else:
-                raise Exception('')
+            pstring = "AES_DATA"
         except:
             try:
-                # TODO Finish TKIP Support
-                # dec = sul.decryptTrafficTkip(p)
-                # print b2a_hex(str(dec.getlayer(Raw)))
-                # if not dec.haslayer(IP) or (dec.haslayer(Raw) and b2a_hex(str(dec.getlayer(Raw)).contains("74657374"))):
-                    # raise Exception('')
-               # pstring = "TKIP_DATA"
-                return query(sul, "DELAY")
+                dec = sul.decryptTrafficTKIP(p)
+                print dec.summary()
+                pstring = "TKIP_DATA"
             except Exception as e: 
                 print(e)
                 pstring = "ENC_DATA_UNKNOWN"
@@ -406,12 +319,12 @@ def genAbstractOutput(sul, p):
 
     # If handshake message
     p = p[Dot11]
-    ep = utils.getEapolLayer(p)
+    ep = utility.utils.getEapolLayer(p)
     if ep:
-        if utils.validMessage1(ep):
+        if utility.utils.validMessage1(ep):
             sul.Anonce = p.Nonce
             sul.ReplayCounter = p.ReplayCounter
-        elif utils.validMessage3(ep):
+        elif utility.utils.validMessage3(ep):
             sul.ReplayCounter = p.ReplayCounter
         pstring = _parseResponse(ep, sul)
     else:
@@ -421,7 +334,7 @@ def genAbstractOutput(sul, p):
 
 def _parseResponse(p, sul):
     if not p.haslayer(Dot11):
-        return utils.genEapolString(p, sul)
+        return utility.utils.genEapolString(p, sul)
     elif p.haslayer(LLC):
         return "UNENCRYPTED_DATA"
     else:

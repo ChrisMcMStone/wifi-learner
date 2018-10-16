@@ -1,7 +1,7 @@
 from scapy.all import *
 from binascii import *
 import hmac, hashlib
-from pbkdf2 import *
+from utility.pbkdf2 import *
 import os
 from Crypto.Cipher import AES
 from Crypto.Util import Counter
@@ -30,7 +30,8 @@ class EAPOLState:
 		self.kck = '00'*16
 		self.kek = '00'*16
 		self.tk = '00'*16
-		self.tkipmic = '00'*8
+		self.mmitxk	= None	# Michael MIC Authenticator Tx Key
+		self.mmirxk	= None	# Michael MIC Authenticator Rx Key
 
 		# Initialize 4-way handshake eapol frames
 		self.frame2 = None
@@ -47,11 +48,12 @@ class EAPOLState:
 			+min(Anonce,self.Snonce)+max(Anonce,self.Snonce)
 		self.ptk = customPRF512(self.pmk, A, B)
 
-		# Extract Key Confirmation Key from the pairwise transient key
+		# Extract Keys from the pairwise transient key
 		self.kck = self.ptk[0:16]
 		self.kek = self.ptk[16:32]
 		self.tk = self.ptk[32:48]
-		self.tkipmic = self.ptk[56:64]
+		self.mmitxk = self.ptk[48:56]
+		self.mmirxk = self.ptk[56:64]
 
 		# Set up 2nd EAPOL frame with zero-ed out MIC
 		frameToMIC = None

@@ -168,6 +168,11 @@ if __name__ == '__main__':
                         if not data:
                             break
                         query = data.strip()
+                        if "TIMEOUT_MODIFY" in query:
+                            print "MODIFYING TIMEOUT VALUE to " + query[15:]
+                            sul.TIMEOUT = float(query[15:])
+                            conn.sendall("DONE"+'\n')
+                            continue
                         print "QUERY: " + query
                         response = query_execute(sul, query)
                         print "RESPONSE: " + response
