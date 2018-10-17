@@ -7,3 +7,5 @@ In this work we adapted state machine learning to handle two major limitations -
 Further details of the research can be found in our paper [here](http://chrismcmstone.github.io/wifi-learner/publications.html).
 
 For information on the tool, including usage instructions and supported features, see [here](https://chrismcmstone.github.io/wifi-learner/tool.html)
+
+![statemachine](statemachine1.png)
