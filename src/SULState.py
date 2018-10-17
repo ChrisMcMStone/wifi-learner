@@ -55,6 +55,16 @@ class SULState:
         self.Anonce = '00' * 32
         self.ReplayCounter = '00' * 8
         self.gtk_kde = None
+        # Change MAC Address to prevent being blacklisted by the network
+        # Using iproute2
+        m = utility.utils.randomMAC()
+        os.system("ip link set dev %s down" % (self.iface))
+        os.system("ip link set dev %s address %s" % (self.iface, m))
+        os.system("ip link set dev %s up" % (self.iface))
+        self.staMac = str2mac(get_if_raw_hwaddr(self.iface)[1])
+        print "injector mac randomized, new mac: %s" % m
+        self.eapol.staMacbin = a2b_hex(self.staMac.lower().replace(":",""))
+        self._buildQueries()
 
     # Send raw packet
     def send(self, packet, count=1, addr1=None, addr2=None, addr3=None):  

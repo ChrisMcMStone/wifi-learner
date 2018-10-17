@@ -268,7 +268,6 @@ def assoc(sul, rsn=None):
                 print "$ Failed to Associate, retrying..."
                 sul.send(sul.queries["Deauth"], count=5)
                 time.sleep(1)
-                retryCount += 1
                 continue
             if assoc_response.getlayer(Dot11AssoResp).status == 0:
                 print "$ Associated."

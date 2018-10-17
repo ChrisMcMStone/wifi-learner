@@ -8,6 +8,7 @@ from scapy.all import get_if_raw_hwaddr, L2Socket, str2mac, sniff, ETH_P_ALL
 import SULInterface
 from SnifferProcess import sniff as msniff
 from SULState import SULState
+from utility.utils import randomMAC
 
 # Show launch parameters
 # TODO extend this
@@ -96,10 +97,11 @@ def query_execute(sul, query):
 
     if "RESET" in query:
         sul.reset()
+
         # Comment out 3 lines below this to enforce reset before association
-        resp = ""
-        while "ACCEPT" not in resp:
-            resp, t, sc = SULInterface.assoc(sul)
+        # resp = ""
+        # while "ACCEPT" not in resp:
+        #     resp, t, sc = SULInterface.assoc(sul)
         return "DONE"
     else:
         p, t, sc = SULInterface.query(sul, query)
