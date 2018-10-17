@@ -2,6 +2,7 @@ import cPickle,os,sys,time,subprocess
 from select import select
 import scapy.all
 
+# Read packets from raw socket, appy lfilter and write into shared buffer
 def sniff(sock, rdpipe, wrpipe, lfilter):
 
     timeout = 10

@@ -16,6 +16,7 @@ def psniff(sul, pf=None):
         inmask = [sp]
         inp, out, err = select(inmask,[],[], 0)
         r = cPickle.load(sp)
+        # Does packet pass the filter
         if not pf:
             return r
         elif pf and pf(r):
@@ -28,7 +29,7 @@ def psniff(sul, pf=None):
 def _filter(sul, x):
 
     # Packet received after last sent
-    # Addressed to fuzzer
+    # Addressed to us?
     # No assoc response (temp hack to avoid issue of resetting SC at start of handshake
     # Not control frame
     # Not ATIM frame
@@ -61,7 +62,7 @@ def _filter(sul, x):
 
     return filt
 
-
+# Used for ignoring broadcast data
 def _isBroadCastIP(ipaddr):
     #Probably broadcast
     if str(ipaddr)[-3:] == "255":
@@ -72,6 +73,8 @@ def _isBroadCastIP(ipaddr):
             return True
     return False
 
+# Parse string representation of query to construct corresponding concrete
+# message with parameters. 
 def query(sul, cmd):
 
     if cmd == 'DELAY':
@@ -230,16 +233,17 @@ def query(sul, cmd):
 
     return query(sul, "DELAY")
     
-
+# Associate with the AP to kick off the 4-way handshake. This method deals with the
+# inevitable case that the AP will take a while to respond and as such requires multiple attempts.
 def assoc(sul, rsn=None):
 
     sul.last_sc_receive = 0
-    retryCount = 0
 
     print "$ Attempting to associate with AP."
-    while retryCount < 10:
-        #time.sleep(1) for iphone
+    while True:
+        #time.sleep(1) for iphone which need delay between attempts
         try:
+            # Send and recieve Auth frames
             sul.send(sul.queries["Auth"])
             auth_response = psniff(sul, lambda x: (x.haslayer(Dot11Auth) \
                     and x.getlayer(Dot11Auth).status == 0 \
@@ -251,12 +255,11 @@ def assoc(sul, rsn=None):
                 continue
             print "$ Authenticated."
 
+            # Send association request using the chosen RSN element (cipher suite)
             if rsn == None:
                 sul.send(sul.queries["AssoReq"] / Dot11Elt(ID='RSNinfo', info=a2b_hex(sul.RSNinfoReal)))
-      #          print sul.RSNinfoReal
             else:
                 sul.send(sul.queries["AssoReq"] / Dot11Elt(ID='RSNinfo', info=a2b_hex(sul.rsnvals[rsn]+'0000')))
-      #          print sul.rsnvals[rsn]+'0000'
 
 
             assoc_response = psniff(sul, lambda x: (x.haslayer(Dot11AssoResp) \
@@ -293,11 +296,13 @@ def genAbstractOutput(sul, p):
     # If encrypted data
     if p.haslayer(Dot11WEP):
         dec = None
+        # Try decrypting with AES
         try:
             dec = sul.decryptTrafficAES(p)
             print dec.summary()
             pstring = "AES_DATA"
         except:
+            # If AES fails, try with TKIP
             try:
                 dec = sul.decryptTrafficTKIP(p)
                 print dec.summary()
@@ -308,10 +313,12 @@ def genAbstractOutput(sul, p):
         sc = (p.SC >> 4)
         return pstring, p.time, sc
 
-    # If handshake message
+    # If EAPOL handshake message
     p = p[Dot11]
     ep = utility.utils.getEapolLayer(p)
     if ep:
+        # Extract the parameters needed to construct subsequent
+        # handshake messages.
         if utility.utils.validMessage1(ep):
             sul.Anonce = p.Nonce
             sul.ReplayCounter = p.ReplayCounter
@@ -321,6 +328,7 @@ def genAbstractOutput(sul, p):
     else:
         pstring = _parseResponse(p, sul)
     sc = (p.SC >> 4)
+    # Return string of packet, timestamp and sequence counter
     return pstring, p.time, sc
 
 def _parseResponse(p, sul):
