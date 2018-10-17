@@ -1,52 +1,13 @@
-# Usage and Instructions
+# Overview
 
-**Note:** currently the tool only supports manual querying. I am in the process of improving the usability of the code that handles interaction with the learning tool (LearnLib). Watch this space.**
 
-## Requirements
+# Overview
 
-**Packages**: pycrypto-2.6.1 scapy-2.4.0 pycryptodomex-3.4.5
+WiFi learner is split into two separate components, the WiFi Interface and the StateLearner. StateLearner systematically builds abstract queries and sends them to the WiFi interface. Here, the abstract queries are turned into concrete 802.11 WiFi frames which are then transmitted to the target Access Point. The interface then observes the responses and converts them into an abstract output that can be fed back to the StateLearner. Using these responses, the StateLearner gradually builds up the state machines implemented by the AP. This process is illustrated below. 
 
-**Hardware**: Two wireless interfaces that support monitor mode. This is required for concurrent sniffing and injection.
+![overview](overview.png)
 
-## Usage
+Instructions on how to set up and use each component can be found at the links below:
 
-`sudo python Launcher.py -i <inject_interface>, -t <sniff_interface> -s <ssid> -p <pre-shared key> -m query_mode [-g gateway_IP]`
-
-Required:
-- `inject_interface` and `sniff_interfaces` are the names of two wireless monitor-mode-enabled interfaces
-- `ssid` is the SSID of the Access Point being tested
-- `pre-shared key` is the passcode for the network
-- `query_mode` is one of `file` or `socket` (see further details below)
-
-Optional:
-- `gateway_IP` specify IP of AP or gateway to use when eliciting encrypted data response (ARP, DHCP)
-
-Currently the tool only supports `file` mode (i.e. manual querying). These queries should be new-line separated in the file named `queries`. An example has been provided. 
-
-## Query Formatting
-
-Supported input messages are listed below. Some of these messages support parameters, which should be formatted as:
-
- `message_type(|param_tag=value|...)`
-
-**For example:** 
-
-`E2(|RSNE=cc|MIC=F|)`
-
-The set of supported messages are:
-
-- `DELAY`
-- `DATA`
-- `ENC_DATA`
-- `ASSOC(|param=...|)` where `param` can only be `RSNE`
-- `E2(|param=...|)` or `E4(|param=...|)` where `param` can be any of the values in the table below.
-
-| Parameter | Tag | Values | Description |
---------------|------|---------|---------------
-| Key Descriptor  | `KD`  |   `WPA1/2`, `WPA2`, `RAND` |   Indicates the EAPOL Key type: WPA, WPA2 or a random value.|
-| Cipher Suites   |  `CS` |    `MD5, SHA1` |  Ciphers and hash functions used for encrypting the Key Data field and calculating the MIC. Options are MD5+RC4 or SHA1+AES. |
-| RSN Element   |  `RSNE`  |   `cc, tc, ct, tt`  |   The chosen ciphersuite combination of TKIP (`t`) and CCMP (`c`) for the group and unicast traffic respectively. |
-|  Key Information   | `KF` |  `P, M, S, E` | The combination of four flags in the Key Info field: `Pairwise (P)`, `MIC (M)`, `Secure (S)`, `Encrypted (E)`, or `-` when none is set. |
-| Nonce  |  `NONC`  |  `W`  |  The Nonce field contains a consistent (default) or inconsistent (`W`) nonce.|
-| MIC  |  `MIC`  |   `F`   |  The MIC field contains a valid (default) or invalid (`F`) Message Integrity Code.
-| Replay Counter  |   `RC`  |  `W`  |    The Replay Counter is set to a correct (default) or an incorrect value (`W`).|
+- [WiFi Interface](https://chrismcmstone.github.io/wifi-learner/interface-tool.html)
+- [StateLearner](https://chrismcmstone.github.io/wifi-learner/learner-tool.html)
