@@ -2,7 +2,7 @@
 
 [StateLearner](https://github.com/jderuiter/statelearner) is a tool that can learn state machines from implementations using a black-box approach. It makes use of [LearnLib](https://learnlib.de/) for the learning specific algorithms.
 
-This is a fork of StateLearner with added support for handling lossy protocols (i.e. non-deterministism) + efficient learning of time based behaviour (e.g. timeouts and retransmissions).
+[This](https://github.com/ChrisMcMStone/statelearner) is a fork of StateLearner with added support for handling lossy protocols (i.e. non-deterministism) + efficient learning of time based behaviour (e.g. timeouts and retransmissions).
 
 This site details how to use StateLeaner for learning implementations of the WiFi security handshake. In general though, it can be used to learn arbitrary software components.
 
@@ -14,6 +14,8 @@ An overview of different security protocols where state machine learning has bee
 * WiFi-Interface Tool 
 
 ## Build
+
+Clone or download the StateLearner fork from [here](https://github.com/ChrisMcMStone/statelearner).
 
 To build a JAR package, run the following command in the repository directory. 
 
