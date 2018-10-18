@@ -292,7 +292,8 @@ def genAbstractOutput(sul, p):
 
     p_string = ""
     # If encrypted data
-    if p.haslayer(Dot11WEP):
+    if p.getlayer(Dot11).type == 2 and p.getlayer(Dot11).subtype == 0x0 \
+            and p.getlayer(Dot11).FCfield & 0x40:
         dec = None
         # Try decrypting with AES
         try:
