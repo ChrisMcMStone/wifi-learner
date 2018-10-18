@@ -5,6 +5,7 @@ from crypto.tkip_key_mixing import TKIP_Mixer
 from crypto.util import calculateCRC , hasFCS , assertDot11FCS
 from utility.utils import setBit
 import binascii
+from Crypto.Cipher import ARC4
 
 # Author: Domien Schepers
 # Modified: Chris McMahon Stone

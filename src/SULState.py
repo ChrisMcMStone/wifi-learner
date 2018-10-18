@@ -100,7 +100,8 @@ class SULState:
 
         # Retrieve the ARP Request message and generate the headers.
         dot11 = Dot11(addr1=addr1, addr2=addr2, addr3=addr3, FCfield='wep+to-DS', type='Data', subtype=0)
-        dot11wep = self.tkipHandler.encapsulate(str(payload), addr2, addr1, 0, self.eapol.mmirxk , self.eapol.tk)
+        dot11wep = self.tkipHandler.encapsulate(str(payload), a2b_hex(addr2.lower().replace(":","")), \
+        a2b_hex(addr1.lower().replace(":","")), 0, self.eapol.mmirxk , self.eapol.tk)
 
         self.sc_send = self.sc_send + 1
         sendp(packet, iface=self.iface, verbose=0, count=1)

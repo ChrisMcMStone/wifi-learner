@@ -51,7 +51,6 @@ def _filter(sul, x):
            not (x.type == 2 and x.subtype == 4) and \
            (x.SC >> 4) > sul.last_sc_receive and \
            not (x.haslayer(IP) and _isBroadCastIP(x.getlayer(IP).dst)) and \
-           not x.haslayer(Raw) and \
            not ((str(x.addr3)[:8] == "01:00:5e") or \
            (str(x.addr1)[:8] == "01:00:5e") or \
            (str(x.addr3)[:5] == "33:33") or \
