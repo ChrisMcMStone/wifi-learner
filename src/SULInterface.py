@@ -297,12 +297,17 @@ def genAbstractOutput(sul, p):
         # Try decrypting with AES
         try:
             dec = sul.decryptTrafficAES(p)
+            # TODO/FIXME checking for Raw layer is hack which I don't think will always work.
+            if dec.haslayer(Raw):
+                raise ValueError('AES Decryption Failed, trying TKIP')
             print dec.summary()
             pstring = "AES_DATA"
         except:
             # If AES fails, try with TKIP
             try:
                 dec = sul.decryptTrafficTKIP(p)
+                if dec.haslayer(Raw):
+                    raise ValueError('TKIP Decryption Failed')
                 print dec.summary()
                 pstring = "TKIP_DATA"
             except Exception as e: 

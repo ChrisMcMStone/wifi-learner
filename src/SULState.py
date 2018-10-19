@@ -57,14 +57,14 @@ class SULState:
         self.gtk_kde = None
         # Change MAC Address to prevent being blacklisted by the network
         # Using iproute2
-        m = utility.utils.randomMAC()
-        os.system("ip link set dev %s down" % (self.iface))
-        os.system("ip link set dev %s address %s" % (self.iface, m))
-        os.system("ip link set dev %s up" % (self.iface))
-        self.staMac = str2mac(get_if_raw_hwaddr(self.iface)[1])
-        print "injector mac randomized, new mac: %s" % m
-        self.eapol.staMacbin = a2b_hex(self.staMac.lower().replace(":",""))
-        self._buildQueries()
+        # m = utility.utils.randomMAC()
+        # os.system("ip link set dev %s down" % (self.iface))
+        # os.system("ip link set dev %s address %s" % (self.iface, m))
+        # os.system("ip link set dev %s up" % (self.iface))
+        # self.staMac = str2mac(get_if_raw_hwaddr(self.iface)[1])
+        # print "injector mac randomized, new mac: %s" % m
+        # self.eapol.staMacbin = a2b_hex(self.staMac.lower().replace(":",""))
+        # self._buildQueries()
 
     # Send raw packet
     def send(self, packet, count=1, addr1=None, addr2=None, addr3=None):  
@@ -102,6 +102,7 @@ class SULState:
         dot11 = Dot11(addr1=addr1, addr2=addr2, addr3=addr3, FCfield='wep+to-DS', type='Data', subtype=0)
         dot11wep = self.tkipHandler.encapsulate(str(payload), a2b_hex(addr2.lower().replace(":","")), \
         a2b_hex(addr1.lower().replace(":","")), 0, self.eapol.mmirxk , self.eapol.tk)
+        packet = RadioTap()/dot11/dot11wep
 
         self.sc_send = self.sc_send + 1
         sendp(packet, iface=self.iface, verbose=0, count=1)

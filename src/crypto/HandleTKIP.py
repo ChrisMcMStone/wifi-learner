@@ -6,6 +6,7 @@ from crypto.util import calculateCRC , hasFCS , assertDot11FCS
 from utility.utils import setBit
 import binascii
 from Crypto.Cipher import ARC4
+from utility.utils import Packet
 
 # Author: Domien Schepers
 # Modified: Chris McMahon Stone
