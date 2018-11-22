@@ -38,7 +38,7 @@ def _filter(sul, x):
     # Not IP packet destined for broadcast/multicast IP
     #f print "RPT = %f" % x.time
     # print "RSC = " + str(x.SC)
-    # TODO remove, assoc and auth frame filtering (need to deal with reset SC when eapol handshake starts). 
+    # TODO remove, assoc and auth frame filtering (need to deal with reset SC when eapol handshake starts).
 
     filt = x is not None and \
            x.time > sul.last_time_receive and \
@@ -57,7 +57,7 @@ def _filter(sul, x):
            (str(x.addr1)[:5] == "33:33") or \
            (str(x.addr3) == "ff:ff:ff:ff:ff:ff") or \
            (str(x.addr1) == "ff:ff:ff:ff:ff:ff"))
-           #not (x.haslayer(Dot11WEP) and _checkDecryptBroadcast(sul, x)) 
+           #not (x.haslayer(Dot11WEP) and _checkDecryptBroadcast(sul, x))
 
     return filt
 
@@ -73,7 +73,7 @@ def _isBroadCastIP(ipaddr):
     return False
 
 # Parse string representation of query to construct corresponding concrete
-# message with parameters. 
+# message with parameters.
 def query(sul, cmd):
 
     if cmd == 'DELAY':
@@ -117,20 +117,20 @@ def query(sul, cmd):
                         invalidMic = True
                 elif 'RC' in x:
                     if x[3:] == '>':
-                        rc = '11'*8 
+                        rc = '11'*8
                 elif 'KF' in x:
                     flags = x[3:7]
                     p = 0 if flags[0]=='x' else 1
                     m = 0 if flags[1]=='x' else 1
                     s = 0 if flags[2]=='x' else 1
                     e = 0 if flags[3]=='x' else 1
-                    kf = 0b00000000 
+                    kf = 0b00000000
                     if m: kf += 1
                     if s: kf += 2
                     if e: kf += 4
                     if not p:
                         cipher -= 8
-            
+
             if cipher: cipher = '0'+str(hex(cipher))[2:]
             if kf: kf = str(kf).zfill(2)
 
@@ -164,7 +164,7 @@ def query(sul, cmd):
                         invalidMic = True
                 elif 'RC' in x:
                     if x[3:] == '>':
-                        rc = '11'*8 
+                        rc = '11'*8
                 elif 'NONC' in x:
                     if x[5:] == 'W':
                         nonce = '10'*32
@@ -176,13 +176,13 @@ def query(sul, cmd):
                     m = 0 if flags[1]=='x' else 1
                     s = 0 if flags[2]=='x' else 1
                     e = 0 if flags[3]=='x' else 1
-                    kf = 0b00000000 
+                    kf = 0b00000000
                     if m: kf += 1
                     if s: kf += 2
                     if e: kf += 4
                     if not p:
                         cipher -= 8
-            
+
             if cipher: cipher = '0'+str(hex(cipher))[2:]
             if kf: kf = str(kf).zfill(2)
 
@@ -223,6 +223,10 @@ def query(sul, cmd):
         addr3 = "ff:ff:ff:ff:ff:ff"
         sul.send(RadioTap()/Dot11()/sul.queries['ARP'],addr1=addr1, addr2=addr2, addr3=addr3)
 
+    elif 'EAP_RESP' in cmd:
+        # TODO create
+
+
     else:
         message = sul.queries[cmd]
         if message:
@@ -231,7 +235,7 @@ def query(sul, cmd):
             return "NO command"
 
     return query(sul, "DELAY")
-    
+
 # Associate with the AP to kick off the 4-way handshake. This method deals with the
 # inevitable case that the AP will take a while to respond and as such requires multiple attempts.
 def assoc(sul, rsn=None):
@@ -275,7 +279,7 @@ def assoc(sul, rsn=None):
                 print "$ Association rejected."
                 return "REJECT", assoc_response.time, 0
 
-        except Exception as e: 
+        except Exception as e:
             print "ERROR in association"
             print(e)
             continue
@@ -311,7 +315,7 @@ def genAbstractOutput(sul, p):
                     raise ValueError('TKIP Decryption Failed')
                 print dec.summary()
                 pstring = "TKIP_DATA"
-            except Exception as e: 
+            except Exception as e:
                 print(e)
                 pstring = "ENC_DATA_UNKNOWN"
         sc = (p.SC >> 4)

@@ -12,7 +12,7 @@ import utility.utils, os
 class SULState:
 
     def __init__(self, iface, ssid, psk, bssid, rsnInfo, gateway):
-        self.iface = iface     
+        self.iface = iface
         self.sniffPipe = None
         # Set MAC addresses
         self.ssid = ssid
@@ -41,7 +41,7 @@ class SULState:
         # Initialize state of handshake for supplicant
         self.eapol = EAPOLState(self.RSNinfo, self.psk, \
                 self.ssid, self.staMac, self.bssid)
-        
+
         # Initialize crypto handlers
         self.aesHandler = HandleAES()
         self.tkipHandler = HandleTKIP()
@@ -57,17 +57,17 @@ class SULState:
         self.gtk_kde = None
         # Change MAC Address to prevent being blacklisted by the network
         # Using iproute2
-        # m = utility.utils.randomMAC()
-        # os.system("ip link set dev %s down" % (self.iface))
-        # os.system("ip link set dev %s address %s" % (self.iface, m))
-        # os.system("ip link set dev %s up" % (self.iface))
-        # self.staMac = str2mac(get_if_raw_hwaddr(self.iface)[1])
-        # print "injector mac randomized, new mac: %s" % m
-        # self.eapol.staMacbin = a2b_hex(self.staMac.lower().replace(":",""))
-        # self._buildQueries()
+        #m = utility.utils.randomMAC()
+        #os.system("ip link set dev %s down" % (self.iface))
+        #os.system("ip link set dev %s address %s" % (self.iface, m))
+        #os.system("ip link set dev %s up" % (self.iface))
+        #self.staMac = str2mac(get_if_raw_hwaddr(self.iface)[1])
+        #print "injector mac randomized, new mac: %s" % m
+        #self.eapol.staMacbin = a2b_hex(self.staMac.lower().replace(":",""))
+        self._buildQueries()
 
     # Send raw packet
-    def send(self, packet, count=1, addr1=None, addr2=None, addr3=None):  
+    def send(self, packet, count=1, addr1=None, addr2=None, addr3=None):
         packet.SC = (self.sc_send << 4)
         if not addr1:
             packet.addr1 = self.bssid
@@ -85,8 +85,8 @@ class SULState:
         self.sc_send = self.sc_send + 1
         sendp(packet, iface=self.iface, verbose=0, count=count)
 
-    # Send frame encrypted with AES-CCMP               
-    def sendAESFrame(self, payload, addr1, addr2, addr3, count=1):  
+    # Send frame encrypted with AES-CCMP
+    def sendAESFrame(self, payload, addr1, addr2, addr3, count=1):
 
         dot11 = Dot11(addr1=addr1, addr2=addr2, addr3=addr3, FCfield=0x41, type=0x2, subtype=0x0)
         dot11wep = self.aesHandler.encapsulate(str(payload), self.eapol.tk , addr1, addr2, addr3)
@@ -96,7 +96,7 @@ class SULState:
         sendp(packet, iface=self.iface, verbose=0, count=1)
 
     # Send frame encrypted with TKIP
-    def sendTKIPFrame(self, payload, addr1, addr2, addr3, count=1):  
+    def sendTKIPFrame(self, payload, addr1, addr2, addr3, count=1):
 
         # Retrieve the ARP Request message and generate the headers.
         dot11 = Dot11(addr1=addr1, addr2=addr2, addr3=addr3, FCfield='wep+to-DS', type='Data', subtype=0)
@@ -156,7 +156,7 @@ class SULState:
             \
             'ARP':LLC() / SNAP() / ARP(op='who-has', pdst=self.gateway, psrc= self.ipsrc, hwsrc=self.staMac, hwdst=self.bssid)
             }
-        
+
         # Hex rep of all possible RSN values (ciphersuites)
         self.rsnvals = {'tc':'0100000fac020100000fac040100000fac02', \
             'tt':'0100000fac020100000fac020100000fac02', \
@@ -171,5 +171,5 @@ class SULState:
 
         self.ciphervals = {'MD5':0x09, \
                 'SHA1':0x0a}
-        
+
         self.rsnvalsRev = {v: k for k, v in self.rsnvals.items()}

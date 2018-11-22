@@ -4,10 +4,11 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-pycrypto = "==2.7a1"
-scapy = "==2.4.0"
 pycryptodomex = "==3.4.5"
-"0acd272" = {editable = true, path = "./../../scapy"}
+scapy = "*"
+pycrypto = {path = "/home/tom/Documents/uni/fyp/pycrypto-2.7a1"}
+cryptography = "*"
+matplotlib = "*"
 
 [dev-packages]
 
