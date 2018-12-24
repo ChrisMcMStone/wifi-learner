@@ -1,6 +1,6 @@
 #!/usr/bin/env python2.7
 from scapy.all import *
-from Crypto.Cipher import AES
+from Cryptodome.Cipher import AES
 from crypto.util import hasFCS , assertDot11FCS
 from crypto.key_wrap import aes_unwrap_key
 from utility.utils import setBit
@@ -18,7 +18,7 @@ class HandleAES:
 	######################################################################################
 	### Initializer ######################################################################
 	######################################################################################
-	
+
 	def __init__( self  ):
 		""" Initializer.
 		"""
@@ -26,18 +26,18 @@ class HandleAES:
 		self.pn = 0
 
 		self.pt = Packet()
-		
+
 	def __getPN( self ):
 		""" Get the next Packet Number (PN) for encapsulation.
 			FIXME: Bounds checking.
 		"""
 		self.pn += 1
-		return self.pn	
-		
+		return self.pn
+
 	######################################################################################
 	### Helpers ##########################################################################
 	######################################################################################
-		
+
 	def __getPNFromCCMPHeader( self , ccmpHeader ):
 		""" Retrieve the Packet Number from the CCMP Header.
 			Ref. IEEE 802.11i specification; CCMP MPDU format.
@@ -51,7 +51,7 @@ class HandleAES:
 		pn5 		= ccmpHeader[0]
 		pn		= struct.pack( '6B' , pn0 , pn1 , pn2 , pn3 , pn4 , pn5 )
 		return pn
-	
+
 	def __getNonce( self , priority , address , pn ):
 		""" Retrieve the Nonce from the priority, address and packet number.
 			Ref. IEEE 802.11i specification; Construct CCM nonce.
@@ -59,12 +59,12 @@ class HandleAES:
 		address = binascii.a2b_hex( address.replace( ':' , '' ) )
 		nonce 	= priority + address + pn
 		return nonce
-	
+
 	def __getAAD( self , fc , addr1 , addr2 , addr3 , sc ):
 		""" Retrieve the Additional Authentication Data (AAD) from the Frame Control
 			field, addresses, and Sequence Number.
 			Ref. IEEE 802.11i specification; Construct AAD.
-		
+
 			The length of the AAD varies depending on the presence or absence of the QC
 			and A4 fields. The QC and A4 field are currently not supported.
 		"""
@@ -87,15 +87,15 @@ class HandleAES:
 		""" Get the CCMP Header from a given Key Identifier and Packet Number.
 			Ref. IEEE 802.11i specification; CCMP MPDU format.
 		"""
-	
+
 		# Pad the Packet Number to six octets.
 		paddedPN 	= '{0:0{1}x}'.format( pn , 12 )
 		pn		= struct.unpack( '6B' , paddedPN.decode('hex') )
 		pn 		= tuple( reversed( pn ) ) # Change byte order.
-	
+
 		# Set the Extended IV flag in the key identifier.
 		keyid 		= setBit( keyid , 5 )
-	
+
 		# Construct the CCMP Header.
 		h0 = pn[0]
 		h1 = pn[1]
@@ -105,7 +105,7 @@ class HandleAES:
 		h5 = pn[3]
 		h6 = pn[4]
 		h7 = pn[5]
-	
+
 		# Pack and return the CCMP Header.
 		ccmpHeader = struct.pack( '8B' , h0 , h1 , h2 , h3 , h4 , h5 , h6 , h7 )
 		return ccmpHeader
@@ -113,7 +113,7 @@ class HandleAES:
 	def __getSequenceControl( self , fragmentNumber , sequenceNumber ):
 		""" Get the Sequence Control field. The Sequence Control field is 16 bits in
 			length and consists of two subfields, the Fragment Number (4-bit) and the
-			Sequence Number (12-bit). 
+			Sequence Number (12-bit).
 			Ref. IEEE 802.11i specification; Sequence Control field structure.
 		"""
 		assert( 0 <= fragmentNumber <= 15 ), \
@@ -132,7 +132,7 @@ class HandleAES:
 			NOTE: 	Wireshark does not automatically decrypt when SC has non-zero parameters?
 				Currently assumed to be zero (if not SC should be returned for Dot11).
 		"""
-	
+
 		# Generate the CCMP Header and AAD for encryption.
 		ccmpHeader	= self.__getCCMPHeader( keyid=0 , pn=self.__getPN() )
 		pn 		= self.__getPNFromCCMPHeader( ccmpHeader )
@@ -141,7 +141,7 @@ class HandleAES:
 		sc		= self.__getSequenceControl( fragmentNumber=0 , sequenceNumber=0 )
 		scFormatted	= binascii.a2b_hex( '{:04x}'.format( sc ) )
 		aad 		= self.__getAAD( fc , addr1 , addr2 , addr3 , scFormatted )
-	
+
 		# Encrypt the plaintext under AES in CCM Mode.
 		# We have to transmit the CCMP Header + Cipher Text + Digest. Because of the
 		# Dot11WEP structure (three octet iv, one octet keyid, four octet icv) we
@@ -157,7 +157,7 @@ class HandleAES:
 		keyid		= int( ccmpHeader[3:4].encode('hex') , 16 ) # Parse to int.
 		wepdata		= ccmpHeader[4:8] + ciphertext + mic[0:4]
 		mic 		= int( mic[4:8].encode('hex') , 16 ) # Parse to int.
-	
+
 		# Return the encapsulated AES message.
 		return Dot11WEP( iv=iv , keyid=keyid , wepdata=wepdata, icv=mic )
 
@@ -169,7 +169,7 @@ class HandleAES:
 		assert( packet.haslayer( Dot11WEP ) ), \
 			'The given packet does not contain a Dot11WEP message (decapsulating AES).'
 		dot11wep = packet.getlayer( Dot11WEP )
-	
+
 		# Check if the Frame Check Sequence (FCS) flag is set in the Radiotap header.
 		# If true assert the correctness of the FCS, and remove the FCS by shifting
 		# the packet ICV and wepdata accordingly to keep consistency with non-FCS
@@ -179,12 +179,12 @@ class HandleAES:
 			assertDot11FCS( packet , expectedFCS=dot11wep.icv )
 			dot11wep.icv 		= int( dot11wep.wepdata[-4:].encode('hex') , 16 ) # Integer for consistency.
 			dot11wep.wepdata 	= dot11wep.wepdata[:-4]
-	
+
 		# Retrieve the Dot11 Packet Information.
 		dot11		= packet.getlayer( Dot11 )
 		sc		= '%x' % dot11.SC
 		fc 		= self.__getFrameControlField( dot11.proto , dot11.type , dot11.subtype , dot11.FCfield )
-	
+
 		# Retrieve the Dot11WEP Packet Information.
 		iv		= dot11wep.iv
 		keyid 		= dot11wep.keyid
@@ -193,27 +193,27 @@ class HandleAES:
 		cipher		= dot11wep.wepdata
 		extendedIV 	= cipher[:4]
 		ciphertext	= cipher[4:-4]
-		mic 		= cipher[-4:] + icv # FIXME: MIC currently not in use.	
-	
+		mic 		= cipher[-4:] + icv # FIXME: MIC currently not in use.
+
 		# Retrieve the Packet Number, Nonce and Additional Authentication Data (AAD).
 		ccmpHeader	= iv + keyid + extendedIV
 		pn 		= self.__getPNFromCCMPHeader( ccmpHeader )
 		nonce		= self.__getNonce( chr(0) , dot11.addr2 , pn )
 		aad		= self.__getAAD( fc , dot11.addr1 , dot11.addr2 , dot11.addr3 , sc )
-	
+
 		# Decrypt the cipher using AES in CCM Mode.
 		cipher 		= AES.new( TK , AES.MODE_CCM , nonce , mac_len=8 )
 		cipher.update( aad )
 		plaintext 	= cipher.decrypt( ciphertext )
-	
+
 		# Return the plaintext.
 		return plaintext
-	
+
 	def unwrapKey( self , plaintext , key ):
 		""" Unwrap keys as defined in RFC 3394 (http://www.ietf.org/rfc/rfc3394.txt).
 		"""
 		return aes_unwrap_key( key , plaintext )
-	
+
 	def deBuilder(self, packet, stream, genFCS):
 		"""Return the decrypted packet"""
 
@@ -227,7 +227,7 @@ class HandleAES:
 		## Remove RadioTap() info if required
 		if genFCS is False:
 			postPkt = RadioTap()/postPkt[RadioTap].payload
-		
+
 		## Rip off the Dot11WEP layer
 		del postPkt[Dot11WEP]
 

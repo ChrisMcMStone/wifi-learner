@@ -3,7 +3,7 @@ import binascii
 from scapy.all import *
 import struct
 from zlib import crc32
-from Crypto.Cipher import AES
+from Cryptodome.Cipher import AES
 import os
 
 ## Code taken and adapted from https://github.com/beurdouche/tools/blob/master/pyrit/pyrit/cpyrit/

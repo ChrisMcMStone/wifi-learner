@@ -1,6 +1,6 @@
 #!/usr/bin/env python2.7
 from scapy.all import *
-from Crypto.Hash import HMAC
+from Cryptodome.Hash import HMAC
 
 from utility.radiotap import radiotap_parse
 from utility.utils import getBit

@@ -3,14 +3,14 @@ from scapy.all import *
 import struct
 from binascii import *
 from EAPOLState import EAPOLState
-from Crypto.Cipher import AES
+from Cryptodome.Cipher import AES
 import cPickle,os,sys,time,subprocess
 
 
 # Sniff for pairwise/unicast traffic
 def psniff(sul, pf=None):
     sp = sul.sniffPipe
-    stoptime = time.time()+sul.TIMEOUT
+    stoptime = time.time() + sul.TIMEOUT
     while stoptime > time.time():
         # Read one frame from sniff buffer
         inmask = [sp]
@@ -36,8 +36,8 @@ def _filter(sul, x):
     # Not Action
     # Not Null frame
     # Not IP packet destined for broadcast/multicast IP
-    #f print "RPT = %f" % x.time
-    # print "RSC = " + str(x.SC)
+    #f print 'RPT = %f' % x.time
+    # print 'RSC = ' + str(x.SC)
     # TODO remove, assoc and auth frame filtering (need to deal with reset SC when eapol handshake starts).
 
     filt = x is not None and \
@@ -51,12 +51,12 @@ def _filter(sul, x):
            not (x.type == 2 and x.subtype == 4) and \
            (x.SC >> 4) > sul.last_sc_receive and \
            not (x.haslayer(IP) and _isBroadCastIP(x.getlayer(IP).dst)) and \
-           not ((str(x.addr3)[:8] == "01:00:5e") or \
-           (str(x.addr1)[:8] == "01:00:5e") or \
-           (str(x.addr3)[:5] == "33:33") or \
-           (str(x.addr1)[:5] == "33:33") or \
-           (str(x.addr3) == "ff:ff:ff:ff:ff:ff") or \
-           (str(x.addr1) == "ff:ff:ff:ff:ff:ff"))
+           not ((str(x.addr3)[:8] == '01:00:5e') or \
+           (str(x.addr1)[:8] == '01:00:5e') or \
+           (str(x.addr3)[:5] == '33:33') or \
+           (str(x.addr1)[:5] == '33:33') or \
+           (str(x.addr3) == 'ff:ff:ff:ff:ff:ff') or \
+           (str(x.addr1) == 'ff:ff:ff:ff:ff:ff'))
            #not (x.haslayer(Dot11WEP) and _checkDecryptBroadcast(sul, x))
 
     return filt
@@ -64,7 +64,7 @@ def _filter(sul, x):
 # Used for ignoring broadcast data
 def _isBroadCastIP(ipaddr):
     #Probably broadcast
-    if str(ipaddr)[-3:] == "255":
+    if str(ipaddr)[-3:] == '255':
         return True
     else:
         x = int(str(ipaddr[:3]))
@@ -76,19 +76,20 @@ def _isBroadCastIP(ipaddr):
 # message with parameters.
 def query(sul, cmd):
 
-    if cmd == 'DELAY':
+    if 'DELAY' in cmd:
         response = psniff(sul, lambda x: _filter(sul, x))
         return genAbstractOutput(sul, response)
 
-    if "ASSOC" in cmd:
-        if(len(cmd) > 5):
+    if 'ASSOC' in cmd:
+        if len(cmd) > 5:
             resp, t, sc = assoc(sul, cmd[11:-1])
         else:
             resp, t, sc = assoc(sul)
-        if "ACCEPT" in resp:
+
+        if 'ACCEPT' in resp:
             sul.last_time_receive = t
             # TODO Might need to force wait for start of handshake
-            resp, t, sc = query(sul, "DELAY")
+            resp, t, sc = query(sul, 'DELAY')
             return resp, t, sc
         else:
             return resp, t, sc
@@ -96,6 +97,7 @@ def query(sul, cmd):
     elif 'E2' in cmd:
         if cmd == 'E2':
             message2 = sul.eapol.buildFrame2(Anonce=sul.Anonce, ReplayCounter=sul.ReplayCounter)
+
         else:
             # Extract parameters, format e.g. EAPOL_2(KD=WPA2|RSNE=cc)
             params = cmd[4:-1].split('|')
@@ -191,50 +193,52 @@ def query(sul, cmd):
         sul.send(message4)
 
     elif cmd == 'ENC_DATA':
-        return query(sul, "ENC_DATA_AES")
+        return query(sul, 'ENC_DATA_AES')
 
     elif cmd == 'ENC_DATA_AES':
         # Try both a DHCP discovery and ARP to elicit encrypted response
         ep2 = sul.queries['ARP']
-        sul.sendAESFrame(ep2, addr1 = sul.bssid, addr2=sul.staMac, addr3 = "ff:ff:ff:ff:ff:ff")
+        sul.sendAESFrame(ep2, addr1 = sul.bssid, addr2=sul.staMac, addr3 = 'ff:ff:ff:ff:ff:ff')
 
         ep = sul.queries['DHCPDisc']
         sul.sendAESFrame(ep, sul.bssid, sul.staMac, sul.bssid)
 
-        response = query(sul, "DELAY")
+        response = query(sul, 'DELAY')
         return response
 
     elif cmd == 'ENC_DATA_TKIP':
         # Try both a DHCP discovery and ARP to elicit encrypted response
         ep2 = sul.queries['ARP']
-        sul.sendTKIPFrame(ep2, addr1 = sul.bssid, addr2=sul.staMac, addr3 = "ff:ff:ff:ff:ff:ff")
+        sul.sendTKIPFrame(ep2, addr1 = sul.bssid, addr2=sul.staMac, addr3 = 'ff:ff:ff:ff:ff:ff')
 
         ep = sul.queries['DHCPDisc']
         sul.sendTKIPFrame(ep, sul.bssid, sul.staMac, sul.bssid)
 
-        response = query(sul, "DELAY")
+        response = query(sul, 'DELAY')
         return response
 
     elif cmd == 'DATA':
         addr1 = sul.bssid
         addr2 = sul.staMac
-        addr3 = "ff:ff:ff:ff:ff:ff"
+        addr3 = 'ff:ff:ff:ff:ff:ff'
         sul.send((RadioTap() / Dot11() / sul.queries['DHCPDisc']), addr1=addr1, addr2=addr2, addr3=addr3)
-        addr3 = "ff:ff:ff:ff:ff:ff"
+        addr3 = 'ff:ff:ff:ff:ff:ff'
         sul.send(RadioTap()/Dot11()/sul.queries['ARP'],addr1=addr1, addr2=addr2, addr3=addr3)
 
     elif 'EAP_RESP' in cmd:
         # TODO create
-
+        '''
+        nothing
+        '''
 
     else:
         message = sul.queries[cmd]
         if message:
             sul.send(message)
         else:
-            return "NO command"
+            return 'NO command'
 
-    return query(sul, "DELAY")
+    return query(sul, 'DELAY')
 
 # Associate with the AP to kick off the 4-way handshake. This method deals with the
 # inevitable case that the AP will take a while to respond and as such requires multiple attempts.
@@ -242,49 +246,49 @@ def assoc(sul, rsn=None):
 
     sul.last_sc_receive = 0
 
-    print "$ Attempting to associate with AP."
+    print '$ Attempting to associate with AP.'
     while True:
         #time.sleep(1) for iphone which need delay between attempts
         try:
             # Send and recieve Auth frames
-            sul.send(sul.queries["Auth"])
+            sul.send(sul.queries['Auth'])
             auth_response = psniff(sul, lambda x: (x.haslayer(Dot11Auth) \
                     and x.getlayer(Dot11Auth).status == 0 \
                     and x.addr1 == sul.staMac))
             if not auth_response:
-                print "$ Failed to Authenticate, retrying..."
-                sul.send(sul.queries["Deauth"], count=5)
+                print '$ Failed to Authenticate, retrying...'
+                sul.send(sul.queries['Deauth'], count=5)
                 time.sleep(1)
                 continue
-            print "$ Authenticated."
+            print '$ Authenticated.'
 
             # Send association request using the chosen RSN element (cipher suite)
             if rsn == None:
-                sul.send(sul.queries["AssoReq"] / Dot11Elt(ID='RSNinfo', info=a2b_hex(sul.RSNinfoReal)))
+                sul.send(sul.queries['AssoReq'] / Dot11Elt(ID='RSNinfo', info=a2b_hex(sul.RSNinfoReal)))
             else:
-                sul.send(sul.queries["AssoReq"] / Dot11Elt(ID='RSNinfo', info=a2b_hex(sul.rsnvals[rsn]+'0000')))
+                sul.send(sul.queries['AssoReq'] / Dot11Elt(ID='RSNinfo', info=a2b_hex(sul.rsnvals[rsn]+'0000')))
 
 
             assoc_response = psniff(sul, lambda x: (x.haslayer(Dot11AssoResp) \
                     and x.addr1 == sul.staMac))
             if not assoc_response:
-                print "$ Failed to Associate, retrying..."
-                sul.send(sul.queries["Deauth"], count=5)
+                print '$ Failed to Associate, retrying...'
+                sul.send(sul.queries['Deauth'], count=5)
                 time.sleep(1)
                 continue
             if assoc_response.getlayer(Dot11AssoResp).status == 0:
-                print "$ Associated."
-                return "ACCEPT", assoc_response.time, 0
+                print '$ Associated.'
+                return 'ACCEPT', assoc_response.time, 0
             else:
-                print "$ Association rejected."
-                return "REJECT", assoc_response.time, 0
+                print '$ Association rejected.'
+                return 'REJECT', assoc_response.time, 0
 
         except Exception as e:
-            print "ERROR in association"
+            print 'ERROR in association'
             print(e)
             continue
 
-    return "TIMEOUT", 0, 0
+    return 'TIMEOUT', 0, 0
 
 # Parse packet to construct abstract string to feed back to learner
 def genAbstractOutput(sul, p):
@@ -292,32 +296,39 @@ def genAbstractOutput(sul, p):
     # If no response, i.e. TIMEOUT
     if not p:
         t = sul.last_time_receive + sul.TIMEOUT
-        return "TIMEOUT,"+str(sul.TIMEOUT), t, sul.last_sc_receive
+        return 'TIMEOUT,'+str(sul.TIMEOUT), t, sul.last_sc_receive
 
-    p_string = ""
+    p_string = ''
     # If encrypted data
-    if p.getlayer(Dot11).type == 2 and p.getlayer(Dot11).subtype == 0x0 \
-            and p.getlayer(Dot11).FCfield & 0x40:
+    if (p.getlayer(Dot11).type == 2
+            and p.getlayer(Dot11).subtype == 0x0
+            and p.getlayer(Dot11).FCfield & 0x40):
+
         dec = None
+
         # Try decrypting with AES
         try:
             dec = sul.decryptTrafficAES(p)
+
             # TODO/FIXME checking for Raw layer is hack which I don't think will always work.
             if dec.haslayer(Raw):
                 raise ValueError('AES Decryption Failed, trying TKIP')
-            print dec.summary()
-            pstring = "AES_DATA"
+
+            # print dec.summary()
+            pstring = 'AES_DATA'
+
         except:
             # If AES fails, try with TKIP
             try:
                 dec = sul.decryptTrafficTKIP(p)
                 if dec.haslayer(Raw):
                     raise ValueError('TKIP Decryption Failed')
-                print dec.summary()
-                pstring = "TKIP_DATA"
+                # print dec.summary()
+                pstring = 'TKIP_DATA'
             except Exception as e:
                 print(e)
-                pstring = "ENC_DATA_UNKNOWN"
+                pstring = 'ENC_DATA_UNKNOWN'
+
         sc = (p.SC >> 4)
         return pstring, p.time, sc
 
@@ -343,8 +354,9 @@ def _parseResponse(p, sul):
     if not p.haslayer(Dot11):
         return utility.utils.genEapolString(p, sul)
     elif p.haslayer(LLC):
-        return "UNENCRYPTED_DATA"
+        return 'UNENCRYPTED_DATA'
     else:
-        if "Dot11" in p.summary():
-            return p.summary().split("Dot11", 1)[1].split(" ", 1)[0]
+        if 'Dot11' in p.summary():
+            return p.summary().split('Dot11', 1)[1].split(' ', 1)[0]
         return p.summary()
+

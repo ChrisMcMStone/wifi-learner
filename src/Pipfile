@@ -5,10 +5,12 @@ name = "pypi"
 
 [packages]
 pycryptodomex = "==3.4.5"
-scapy = "*"
-pycrypto = {path = "/home/tom/Documents/uni/fyp/pycrypto-2.7a1"}
 cryptography = "*"
 matplotlib = "*"
+ipython = "*"
+scapy = "==2.4.0"
+2b6f1cc = {path = "./../../scapy-ssl_tls"}
+pycrypto = {editable = true,path = "./../../pycrypto-2.7a1"}
 
 [dev-packages]
 

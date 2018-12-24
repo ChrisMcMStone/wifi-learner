@@ -42,7 +42,7 @@ def sniff(sock, rdpipe, wrpipe, lfilter):
             pass
         except KeyboardInterrupt:
             pass
-        except Exception as e: 
+        except Exception as e:
             print "--- Error in child %i" % os.getpid()
             print(e)
     finally:

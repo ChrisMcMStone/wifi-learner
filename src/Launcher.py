@@ -16,7 +16,7 @@ def showhelp():
     print "\nSyntax: ./Launcher.py -i <inject_interface>, -t <sniff_interface> " \
         " -s <ssid> -p <pre-shared key> -m query_mode [-g gateway IP]\n"
 
-# Extract the 'Robust Security Network' info element from 
+# Extract the 'Robust Security Network' info element from
 # the AP Beacons. This contains the supported cipher suites (AES, TKIP, WEP)
 def getRSNInfo(p):
     if(p.haslayer(dot11.Dot11Beacon)):
@@ -33,8 +33,8 @@ def getRSNInfo(p):
         i += 1
         p = p.getlayer(0)
 
-# Parse command line arguments, initialise required objects and 
-# set WiFi interfaces to channel target AP is operating on. 
+# Parse command line arguments, initialise required objects and
+# set WiFi interfaces to channel target AP is operating on.
 def set_up_sul():
     try:
         opts, args = getopt.getopt(sys.argv[1:], "hi:t:s:p:m:g:")
@@ -87,6 +87,7 @@ def set_up_sul():
     print "Sniffer MAC address: %s" % str2mac(
         get_if_raw_hwaddr(sniff_iface)[1])
     print "Injector address: %s" % str2mac(get_if_raw_hwaddr(inject_iface)[1])
+    # SULState.py line 14 `def __init__(self, iface, ssid, psk, bssid, rsnInfo, gateway):`
     sul = SULState(inject_iface, ssid, psk, bssid, rsnInfo, gateway)
 
     return sul, mode, sniff_iface
@@ -94,6 +95,9 @@ def set_up_sul():
 # Pass on incoming abstract queries to the SUL. Return abstract string
 # representation of response + timestamp
 def query_execute(sul, query):
+    '''
+    Execute query, return result string
+    '''
 
     if "RESET" in query:
         sul.reset()
@@ -104,6 +108,11 @@ def query_execute(sul, query):
         #     resp, t, sc = SULInterface.assoc(sul)
         return "DONE"
     else:
+        '''
+        p: received packet string
+        t: time
+        sc: packet? TODO
+        '''
         p, t, sc = SULInterface.query(sul, query)
         if "TIMEOUT" not in p and "DATA" not in p:
             sul.last_sc_receive = sc
@@ -151,6 +160,10 @@ if __name__ == '__main__':
                 if mode == "file":
                     with open("queries", "r") as f:
                         for query in f:
+
+                            if 'QUIT' in query:
+                                sys.exit(0)
+
                             query = query.strip()
                             if query == "END":
                                 break
@@ -174,22 +187,25 @@ if __name__ == '__main__':
                         if not data:
                             break
                         query = data.strip()
-                        # The learner can modify the timeout value which this 
-                        # program with use to wait for responses. 
+                        # The learner can modify the timeout value which this
+                        # program with use to wait for responses.
                         if "TIMEOUT_MODIFY" in query:
                             print "MODIFYING TIMEOUT VALUE to " + query[15:]
                             sul.TIMEOUT = float(query[15:])
                             conn.sendall("DONE"+'\n')
                             continue
-                        
+
                         print "QUERY: " + query
                         response = query_execute(sul, query)
                         print "RESPONSE: " + response
                         if response:
                             conn.sendall(response+'\n')
+            except SystemExit:
+                'nop'
+
             except:
                 traceback.print_exc()
-            finally:
-                os.waitpid(pid, 0)
+            #finally:
+            #   os.waitpid(pid, 0)
     finally:
         sys.exit()

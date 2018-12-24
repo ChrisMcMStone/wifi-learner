@@ -1,6 +1,7 @@
-import scapy.all as sc
+#!/bin/usr/env python
 
-# Holds the state of the EAP protocol
+import scapy.all as sc
+import TLS
 
 class EAPState:
     """
@@ -15,13 +16,15 @@ class EAPState:
 
         :param staMac: static MAC, for injector card
         :param apMac: access point MAC
-        :param iden: radius logon identity
         :param anon_iden: radius logon anonymous identity
+        :param iden: radius logon identity
         """
         self.staMac = staMac
         self.apMac = apMac
         self.iden = iden
         self.anon_iden = anon_iden
+
+        # Base header packet for EAPOL communication
         self.base_packet = (
             sc.Ether(dst=self.apMac, src=self.staMac, type=0x888e) /
             sc.EAPOL(version='802.1X-2001', type='EAP-Packet'))
@@ -58,3 +61,13 @@ class EAPState:
         return pac
 
 
+    def client_hello(self):
+        """
+        Create the client hello packet
+        """
+        pac = (
+            self.base_packet /
+            sc.EAP_TTLS(code='Response',
+                        id=3, type='EAP-TTLS',
+                        L=0, M=0, S=0, reserved=0, verion=0,
+                        data=TLS.client_hello())

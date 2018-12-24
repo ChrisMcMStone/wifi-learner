@@ -9,7 +9,7 @@ The time to use this code is when you need compatibility with another system tha
 Performance should be reasonable, since the heavy lifting is all done in PyCrypto's AES.
 '''
 import struct
-from Crypto.Cipher import AES
+from Cryptodome.Cipher import AES
 
 # Source:
 # https://gist.github.com/doublereedkurt/4243633
