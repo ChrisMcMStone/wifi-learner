@@ -20,7 +20,6 @@ def psniff(sul, pf=None):
         if not pf:
             return r
         elif pf and pf(r):
-            print(r.show())
             return r
         else:
             continue
@@ -37,27 +36,58 @@ def _filter(sul, x):
     # Not Action
     # Not Null frame
     # Not IP packet destined for broadcast/multicast IP
+
     #f print 'RPT = %f' % x.time
     # print 'RSC = ' + str(x.SC)
     # TODO remove, assoc and auth frame filtering (need to deal with reset SC when eapol handshake starts).
 
-    filt = x is not None and \
-           x.time > sul.last_time_receive and \
-           x.addr1 == sul.staMac and \
-           x.type != 1 and \
-           not (x.type == 0 and x.subtype == 1) and \
-           not (x.type == 0 and x.subtype == 11) and \
-           not (x.type == 0 and x.subtype == 9) and \
-           not (x.type == 0 and x.subtype == 13) and \
-           not (x.type == 2 and x.subtype == 4) and \
-           (x.SC >> 4) > sul.last_sc_receive and \
-           not (x.haslayer(IP) and _isBroadCastIP(x.getlayer(IP).dst)) and \
-           not ((str(x.addr3)[:8] == '01:00:5e') or \
-           (str(x.addr1)[:8] == '01:00:5e') or \
-           (str(x.addr3)[:5] == '33:33') or \
-           (str(x.addr1)[:5] == '33:33') or \
-           (str(x.addr3) == 'ff:ff:ff:ff:ff:ff') or \
-           (str(x.addr1) == 'ff:ff:ff:ff:ff:ff'))
+#    try:
+#        (x[Dot11][EAP].show())
+#        print('######### PACKET START ##############')
+#        print(x.show())
+#        print('######### PACKET END  ##############')
+#        print('######### PACKET TEST START  ##############')
+#        print(x is not None)
+#        print(x.time > sul.last_time_receive)
+#        print(x.addr1 == sul.staMac)
+#        print(x.type != 1)
+#        print(not (x.type == 0 and x.subtype == 1))
+#        print(not (x.type == 0 and x.subtype == 11))
+#        print(not (x.type == 0 and x.subtype == 9))
+#        print(not (x.type == 0 and x.subtype == 13))
+#        print(not (x.type == 2 and x.subtype == 4))
+#        print((x.SC >> 4) > sul.last_sc_receive)
+#        print(not (x.haslayer(IP) and _isBroadCastIP(x.getlayer(IP).dst)))
+#        print(not ((str(x.addr3)[:8] == '01:00:5e') or
+#             (str(x.addr1)[:8] == '01:00:5e') or
+#             (str(x.addr3)[:5] == '33:33') or
+#             (str(x.addr1)[:5] == '33:33') or
+#             (str(x.addr3) == 'ff:ff:ff:ff:ff:ff') or
+#             (str(x.addr1) == 'ff:ff:ff:ff:ff:ff')))
+#        print('######### PACKET TEST END  ##############')
+#        print('SC = %s, last_sc_receive = %s'
+#              % (str(x.SC), str(sul.last_sc_receive)))
+#        print('############# SC ##################')
+#    except IndexError:
+#         ''
+
+    filt = (x is not None and
+            x.time > sul.last_time_receive and
+            x.addr1 == sul.staMac and
+            x.type != 1 and
+            not (x.type == 0 and x.subtype == 1) and
+            not (x.type == 0 and x.subtype == 11) and
+            not (x.type == 0 and x.subtype == 9) and
+            not (x.type == 0 and x.subtype == 13) and
+            not (x.type == 2 and x.subtype == 4) and
+            ((x.SC >> 4) > sul.last_sc_receive or x.haslayer(EAP)) and
+            not (x.haslayer(IP) and _isBroadCastIP(x.getlayer(IP).dst)) and
+            not ((str(x.addr3)[:8] == '01:00:5e') or
+                 (str(x.addr1)[:8] == '01:00:5e') or
+                 (str(x.addr3)[:5] == '33:33') or
+                 (str(x.addr1)[:5] == '33:33') or
+                 (str(x.addr3) == 'ff:ff:ff:ff:ff:ff') or
+                 (str(x.addr1) == 'ff:ff:ff:ff:ff:ff')))
            #not (x.haslayer(Dot11WEP) and _checkDecryptBroadcast(sul, x))
 
     return filt
@@ -271,21 +301,24 @@ def assoc(sul, rsn=None):
             if rsn == None:
                 sul.send(sul.queries['AssoReq'] / Dot11Elt(ID='RSNinfo', info=a2b_hex(sul.RSNinfoReal)))
             else:
-                sul.send(sul.queries['AssoReq'] / Dot11Elt(ID='RSNinfo', info=a2b_hex(sul.rsnvals[rsn]+'0000')))
+                # EAP bodge for now
+                sul.send(sul.queries['AssoReq'] / Dot11Elt(ID='RSNinfo', info=a2b_hex(sul.RSNinfoReal)))
+                #sul.send(sul.queries['AssoReq'] / Dot11Elt(ID='RSNinfo', info=a2b_hex))
 
 
-            assoc_response = psniff(sul, lambda x: (x.haslayer(Dot11AssoResp) \
-                    and x.addr1 == sul.staMac))
+            assoc_response = psniff(sul, lambda x: (x.haslayer(Dot11AssoResp)
+                                                    and x.addr1 == sul.staMac))
             if not assoc_response:
                 print '$ Failed to Associate, retrying...'
                 sul.send(sul.queries['Deauth'], count=5)
                 time.sleep(1)
                 continue
-            if assoc_response.getlayer(Dot11AssoResp).status == 0: # TODO Sort out code 43
+            if assoc_response.getlayer(Dot11AssoResp).status == 0: # TODO Sort out code 43: invalid AKMP
                 print '$ Associated.'
                 return 'ACCEPT', assoc_response.time, 0
             else:
-                print '$ Association rejected.'
+                print('$ Association rejected. Status code %s'
+                      % str(assoc_response.getlayer(Dot11AssoResp).status))
                 return 'REJECT', assoc_response.time, 0
 
         except Exception as e:
@@ -337,10 +370,14 @@ def genAbstractOutput(sul, p):
         sc = (p.SC >> 4)
         return pstring, p.time, sc
 
-    # If EAP message
-    if EAP in p:
+    # try eap
+    try:
+        eapp = p[EAP]
         pstring = 'EAP'
-        print(str(p))
+        sc = (p.SC >> 4)
+        return pstring, p.time, sc
+    except IndexError:
+        ''
 
     # If EAPOL handshake message
     p = p[Dot11]

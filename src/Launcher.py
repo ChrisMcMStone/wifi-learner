@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#! /usr/bin/env python
 
 import getopt, logging, random, os, socket, signal, subprocess, sys, time, traceback
 from binascii import b2a_hex
@@ -13,8 +13,8 @@ from utility.utils import randomMAC
 # Show launch parameters
 # TODO extend this
 def showhelp():
-    print "\nSyntax: ./Launcher.py -i <inject_interface>, -t <sniff_interface> " \
-        " -s <ssid> -p <pre-shared key> -m query_mode [-g gateway IP]\n"
+    print('\nSyntax: ./Launcher.py -i <inject_interface>, -t <sniff_interface>'
+          + ' -s <ssid> -p <pre-shared key> -m query_mode [-g gateway IP]\n')
 
 # Extract the 'Robust Security Network' info element from
 # the AP Beacons. This contains the supported cipher suites (AES, TKIP, WEP)
@@ -29,17 +29,19 @@ def getRSNInfo(p):
         if curr == None:
             return None
         if(curr.name == '802.11 Information Element' and curr.ID == 48):
+            print('RSN TAG')
             return str(b2a_hex(curr.info))
         i += 1
         p = p.getlayer(0)
+    return None #No info found
 
 # Parse command line arguments, initialise required objects and
 # set WiFi interfaces to channel target AP is operating on.
 def set_up_sul():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "hi:t:s:p:m:g:")
+        opts, args = getopt.getopt(sys.argv[1:], 'hi:t:s:p:m:g:')
     except getopt.GetoptError, e:
-        print str(e)
+        print(str(e))
         showhelp()
         exit(1)
 
@@ -64,7 +66,7 @@ def set_up_sul():
     # Sniff for Beacons to determine channel and RSNinfo
     while beacon_sniff:
         channel = random.randrange(1,15)
-        os.system("iw dev %s set channel %d" % (sniff_iface, channel))
+        os.system('iw dev %s set channel %d' % (sniff_iface, channel))
         ps = sniff(timeout=0.1, iface=sniff_iface)
         for p in ps:
             if(p is None or len(p) == 0):
@@ -75,18 +77,18 @@ def set_up_sul():
                     rsnInfo = getRSNInfo(p)
                     bssid = p[dot11.Dot11].addr3
                     channel = int(ord(p[dot11.Dot11Elt:3].info))
-                    os.system("iwconfig %s channel %d" %
+                    os.system('iwconfig %s channel %d' %
                                 (sniff_iface, channel))
-                    os.system("iwconfig %s channel %d" %
+                    os.system('iwconfig %s channel %d' %
                                 (inject_iface, channel))
                     beacon_sniff = False
                 except TypeError:
                     continue
 
-    print "Detected beacon from %s on channel %d..." % (ssid, channel)
-    print "Sniffer MAC address: %s" % str2mac(
+    print 'Detected beacon from %s on channel %d...' % (ssid, channel)
+    print 'Sniffer MAC address: %s' % str2mac(
         get_if_raw_hwaddr(sniff_iface)[1])
-    print "Injector address: %s" % str2mac(get_if_raw_hwaddr(inject_iface)[1])
+    print 'Injector address: %s' % str2mac(get_if_raw_hwaddr(inject_iface)[1])
     # SULState.py line 14 `def __init__(self, iface, ssid, psk, bssid, rsnInfo, gateway):`
     sul = SULState(inject_iface, ssid, psk, bssid, rsnInfo, gateway)
 
@@ -99,14 +101,14 @@ def query_execute(sul, query):
     Execute query, return result string
     '''
 
-    if "RESET" in query:
+    if 'RESET' in query:
         sul.reset()
 
         # Comment out 3 lines below this to enforce reset before association
-        # resp = ""
-        # while "ACCEPT" not in resp:
+        # resp = ''
+        # while 'ACCEPT' not in resp:
         #     resp, t, sc = SULInterface.assoc(sul)
-        return "DONE"
+        return 'DONE'
     else:
         '''
         p: received packet string
@@ -114,17 +116,17 @@ def query_execute(sul, query):
         sc: packet? TODO
         '''
         p, t, sc = SULInterface.query(sul, query)
-        if "TIMEOUT" not in p and "DATA" not in p:
+        if 'TIMEOUT' not in p and 'DATA' not in p:
             sul.last_sc_receive = sc
         tdiff = round(t - sul.last_time_receive)
         sul.last_time_receive = t
         # No times on data frames
-        if "DATA" in p or "REJECT" in p:
-            return p + ",0.0"
-        elif "TIMEOUT" in p:
+        if 'DATA' in p or 'REJECT' in p:
+            return p + ',0.0'
+        elif 'TIMEOUT' in p:
             return p
         else:
-            return p + "," + str(tdiff)
+            return p + ',' + str(tdiff)
 
 
 if __name__ == '__main__':
@@ -135,7 +137,7 @@ if __name__ == '__main__':
 
     rdpipe, wrpipe = os.pipe()
     rdpipe = os.fdopen(rdpipe)
-    wrpipe = os.fdopen(wrpipe, "w")
+    wrpipe = os.fdopen(wrpipe, 'w')
 
     sul.sniffPipe = rdpipe
 
@@ -148,28 +150,28 @@ if __name__ == '__main__':
             try:
                 msniff(s, rdpipe, wrpipe, None)
             except:
-                print "ERROR with sniffing process"
+                print 'ERROR with sniffing process'
                 raise
         elif pid < 0:
-            print "ERROR fork failed"
+            print 'ERROR fork failed'
         else:
             wrpipe.close()
             try:
                 # If we are executing a set of state queries, read from file
                 # and run one-by-one.
-                if mode == "file":
-                    with open("queries", "r") as f:
+                if mode == 'file':
+                    with open('queries', 'r') as f:
                         for query in f:
 
                             if 'QUIT' in query:
                                 sys.exit(0)
 
                             query = query.strip()
-                            print "QUERY: " + query
+                            print 'QUERY: ' + query
                             response = query_execute(sul, query)
-                            print "RESPONSE: " + response
+                            print 'RESPONSE: ' + response
 
-                elif mode == "socket":
+                elif mode == 'socket':
                     # Set up TCP socket with state machine learner software
                     HOST = '127.0.0.1'
                     PORT = 4444
@@ -187,15 +189,15 @@ if __name__ == '__main__':
                         query = data.strip()
                         # The learner can modify the timeout value which this
                         # program with use to wait for responses.
-                        if "TIMEOUT_MODIFY" in query:
-                            print "MODIFYING TIMEOUT VALUE to " + query[15:]
+                        if 'TIMEOUT_MODIFY' in query:
+                            print 'MODIFYING TIMEOUT VALUE to ' + query[15:]
                             sul.TIMEOUT = float(query[15:])
-                            conn.sendall("DONE"+'\n')
+                            conn.sendall('DONE'+'\n')
                             continue
 
-                        print "QUERY: " + query
+                        print 'QUERY: ' + query
                         response = query_execute(sul, query)
-                        print "RESPONSE: " + response
+                        print 'RESPONSE: ' + response
                         if response:
                             conn.sendall(response+'\n')
             except SystemExit:

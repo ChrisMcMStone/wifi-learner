@@ -29,7 +29,7 @@ class SULState:
         # Required for EAPOL frames
         self.Anonce = '00' * 32
         self.ReplayCounter = '00' * 8
-        self.RSNinfo = rsnInfo[:36] + '0000'
+        self.RSNinfo     = rsnInfo[:36] + '0000'
         self.RSNinfoReal = rsnInfo[:36] + '0000'
         # Required for ARP requests
         self.gateway = gateway
@@ -53,7 +53,7 @@ class SULState:
         self.sc_send = 0
         #self.last_sc_receive = -1
         # Deauthenticate previously associated MAC to free up memory
-        self.send(self.queries["Deauth"], count=5)
+        self.send(self.queries['Deauth'], count=5)
         self.last_time_receive = time.time()
         self.Anonce = '00' * 32
         self.ReplayCounter = '00' * 8
@@ -61,12 +61,12 @@ class SULState:
         # Change MAC Address to prevent being blacklisted by the network
         # Using iproute2
         #m = utility.utils.randomMAC()
-        #os.system("ip link set dev %s down" % (self.iface))
-        #os.system("ip link set dev %s address %s" % (self.iface, m))
-        #os.system("ip link set dev %s up" % (self.iface))
+        #os.system('ip link set dev %s down' % (self.iface))
+        #os.system('ip link set dev %s address %s' % (self.iface, m))
+        #os.system('ip link set dev %s up' % (self.iface))
         #self.staMac = str2mac(get_if_raw_hwaddr(self.iface)[1])
-        #print "injector mac randomized, new mac: %s" % m
-        #self.eapol.staMacbin = a2b_hex(self.staMac.lower().replace(":",""))
+        #print 'injector mac randomized, new mac: %s' % m
+        #self.eapol.staMacbin = a2b_hex(self.staMac.lower().replace(':',''))
         self._buildQueries()
 
     # Send raw packet
@@ -103,8 +103,8 @@ class SULState:
 
         # Retrieve the ARP Request message and generate the headers.
         dot11 = Dot11(addr1=addr1, addr2=addr2, addr3=addr3, FCfield='wep+to-DS', type='Data', subtype=0)
-        dot11wep = self.tkipHandler.encapsulate(str(payload), a2b_hex(addr2.lower().replace(":","")), \
-        a2b_hex(addr1.lower().replace(":","")), 0, self.eapol.mmirxk , self.eapol.tk)
+        dot11wep = self.tkipHandler.encapsulate(str(payload), a2b_hex(addr2.lower().replace(':','')), \
+        a2b_hex(addr1.lower().replace(':','')), 0, self.eapol.mmirxk , self.eapol.tk)
         packet = RadioTap()/dot11/dot11wep
 
         self.sc_send = self.sc_send + 1
@@ -124,32 +124,32 @@ class SULState:
         # Construct all the static frames that are supported by learner.
         self.queries = {
             'AssoReq':(RadioTap() / Dot11()
-                       / Dot11AssoReq(cap="short-slot+ESS+privacy+short-preamble")
+                       / Dot11AssoReq(cap='short-slot+ESS+privacy+short-preamble')
                        / Dot11Elt(ID='SSID', info=self.ssid)
-                       / Dot11Elt(ID='Rates', info="\x82\x84\x02\x8b\x96\x04\x0b\x16\x0c\x12\x18\x24")),
+                       / Dot11Elt(ID='Rates', info='\x82\x84\x02\x8b\x96\x04\x0b\x16\x0c\x12\x18\x24')),
 
             'AssoResp':(RadioTap() / Dot11() / Dot11AssoResp()),
 
             'Disas':(RadioTap() / Dot11() / Dot11Disas()),
 
             'ReassoReq':(RadioTap() / Dot11()
-                         / Dot11ReassoReq(cap="short-slot+ESS+privacy+short-preamble")
+                         / Dot11ReassoReq(cap='short-slot+ESS+privacy+short-preamble')
                          / Dot11Elt(ID='SSID', info=self.ssid)
-                         / Dot11Elt(ID='Rates', info="\x82\x84\x02\x8b\x96\x04\x0b\x16\x0c\x12\x18\x24")
+                         / Dot11Elt(ID='Rates', info='\x82\x84\x02\x8b\x96\x04\x0b\x16\x0c\x12\x18\x24')
                          / Dot11Elt(ID='RSNinfo', info=a2b_hex(self.RSNinfo))),
 
             'ReassoResp':RadioTap() / Dot11() / Dot11ReassoResp(),
 
-            'Auth':RadioTap() / Dot11() / Dot11Auth(algo="open", seqnum=1),
+            'Auth':RadioTap() / Dot11() / Dot11Auth(algo='open', seqnum=1),
 
             'Deauth':RadioTap() / Dot11() / Dot11Deauth(reason=7),
 
             'ProbeReq':(RadioTap() / Dot11() / Dot11ProbeReq() / Dot11Elt(ID='SSID', info=self.ssid)
-                        / Dot11Elt(ID='Rates', info="\x82\x84\x02\x8b\x96\x04\x0b\x16\x0c\x12\x18\x24")
+                        / Dot11Elt(ID='Rates', info='\x82\x84\x02\x8b\x96\x04\x0b\x16\x0c\x12\x18\x24')
                         / Dot11Elt(ID='RSNinfo', info=a2b_hex(self.RSNinfo))),
 
             'ProbeResp':(RadioTap() / Dot11() / Dot11ProbeResp()
-                         / Dot11Elt(ID='Rates', info="\x82\x84\x02\x8b\x96\x04\x0b\x16\x0c\x12\x18\x24")
+                         / Dot11Elt(ID='Rates', info='\x82\x84\x02\x8b\x96\x04\x0b\x16\x0c\x12\x18\x24')
                          / Dot11Elt(ID='RSNinfo', info=a2b_hex(self.RSNinfo))),
 
             'DHCPDisc':(LLC() / SNAP() / IP(src='0.0.0.0', dst='255.255.255.255')
@@ -166,18 +166,18 @@ class SULState:
             }
 
         # Hex rep of all possible RSN values (ciphersuites)
-        self.rsnvals = {'tc':'0100000fac020100000fac040100000fac02', \
-            'tt':'0100000fac020100000fac020100000fac02', \
-            'cc':'0100000fac040100000fac040100000fac02', \
-            'ct':'0100000fac040100000fac020100000fac02', \
-            'ww':'0100000fac010100000fac010100000fac02', \
-            'wpa1':'dd160050f20101000050f20201000050f20401000050f202'}
+        self.rsnvals = {'tc':'0100000fac020100000fac040100000fac02',
+                        'tt':'0100000fac020100000fac020100000fac02',
+                        'cc':'0100000fac040100000fac040100000fac02',
+                        'ct':'0100000fac040100000fac020100000fac02',
+                        'ww':'0100000fac010100000fac010100000fac02',
+                        'wpa1':'dd160050f20101000050f20201000050f20401000050f202'}
 
-        self.kdvals = {'WPA2':'02', \
-                'WPA1':'fe', \
-                'RAND': '10'}
+        self.kdvals = {'WPA2':'02',
+                       'WPA1':'fe',
+                       'RAND': '10'}
 
-        self.ciphervals = {'MD5':0x09, \
-                'SHA1':0x0a}
+        self.ciphervals = {'MD5':0x09,
+                           'SHA1':0x0a}
 
         self.rsnvalsRev = {v: k for k, v in self.rsnvals.items()}
