@@ -165,8 +165,6 @@ if __name__ == '__main__':
                                 sys.exit(0)
 
                             query = query.strip()
-                            if query == "END":
-                                break
                             print "QUERY: " + query
                             response = query_execute(sul, query)
                             print "RESPONSE: " + response

@@ -20,6 +20,7 @@ def psniff(sul, pf=None):
         if not pf:
             return r
         elif pf and pf(r):
+            print(r.show())
             return r
         else:
             continue
@@ -226,10 +227,13 @@ def query(sul, cmd):
         sul.send(RadioTap()/Dot11()/sul.queries['ARP'],addr1=addr1, addr2=addr2, addr3=addr3)
 
     elif 'EAP_RESP' in cmd:
-        # TODO create
-        '''
-        nothing
-        '''
+        # TODO
+        # Extract parameters, format e.g. EAP_RESP(ANON_ID=ANON|ID=ID)
+        params = cmd[8:-2].split('|')
+        anon_id = params[0]
+        _id = params[1]
+        packet = sul.eap.id_resp(_id, anon_id)
+        sul.send(packet)
 
     else:
         message = sul.queries[cmd]
@@ -252,9 +256,10 @@ def assoc(sul, rsn=None):
         try:
             # Send and recieve Auth frames
             sul.send(sul.queries['Auth'])
-            auth_response = psniff(sul, lambda x: (x.haslayer(Dot11Auth) \
-                    and x.getlayer(Dot11Auth).status == 0 \
-                    and x.addr1 == sul.staMac))
+            auth_response = psniff(sul,
+                                   lambda x: (x.haslayer(Dot11Auth)
+                                              and x.getlayer(Dot11Auth).status == 0
+                                              and x.addr1 == sul.staMac))
             if not auth_response:
                 print '$ Failed to Authenticate, retrying...'
                 sul.send(sul.queries['Deauth'], count=5)
@@ -276,7 +281,7 @@ def assoc(sul, rsn=None):
                 sul.send(sul.queries['Deauth'], count=5)
                 time.sleep(1)
                 continue
-            if assoc_response.getlayer(Dot11AssoResp).status == 0:
+            if assoc_response.getlayer(Dot11AssoResp).status == 0: # TODO Sort out code 43
                 print '$ Associated.'
                 return 'ACCEPT', assoc_response.time, 0
             else:
@@ -331,6 +336,11 @@ def genAbstractOutput(sul, p):
 
         sc = (p.SC >> 4)
         return pstring, p.time, sc
+
+    # If EAP message
+    if EAP in p:
+        pstring = 'EAP'
+        print(str(p))
 
     # If EAPOL handshake message
     p = p[Dot11]

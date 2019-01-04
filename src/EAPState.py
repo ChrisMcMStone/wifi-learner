@@ -8,7 +8,7 @@ class EAPState:
     Holds the state of EAP
     """
 
-    def __init__(self, staMac, apMac, anon_iden, iden):
+    def __init__(self, staMac, apMac):
         """
         Constructor for EAP state machine
 
@@ -21,8 +21,6 @@ class EAPState:
         """
         self.staMac = staMac
         self.apMac = apMac
-        self.iden = iden
-        self.anon_iden = anon_iden
 
         # Base header packet for EAPOL communication
         self.base_packet = (
@@ -30,7 +28,9 @@ class EAPState:
             sc.EAPOL(version='802.1X-2001', type='EAP-Packet'))
 
 
-    def id_resp(self):
+    def id_resp(self, iden, anon_iden):
+        self.iden = iden
+        self.anon_iden = anon_iden
         """
         Create optionally anonymous identity response packet
         """
@@ -70,4 +70,5 @@ class EAPState:
             sc.EAP_TTLS(code='Response',
                         id=3, type='EAP-TTLS',
                         L=0, M=0, S=0, reserved=0, verion=0,
-                        data=TLS.client_hello())
+                        data=TLS.client_hello()))
+

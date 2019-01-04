@@ -2,6 +2,7 @@ from scapy.all import *
 import struct
 from binascii import *
 from EAPOLState import EAPOLState
+from EAPState import EAPState
 from crypto.HandleTKIP import *
 from crypto.HandleAES import *
 import time
@@ -33,14 +34,16 @@ class SULState:
         # Required for ARP requests
         self.gateway = gateway
         lastoctindex = gateway.rfind('.')+1
-        self.ipsrc = gateway[:lastoctindex] + \
-            str(random.randint(int(gateway[lastoctindex:]),250))
+        self.ipsrc = (gateway[:lastoctindex]
+                      + str(random.randint(int(gateway[lastoctindex:]),250)))
+
         self._buildQueries()
         # Timeout for waiting for responses
         self.TIMEOUT = 2.0
         # Initialize state of handshake for supplicant
-        self.eapol = EAPOLState(self.RSNinfo, self.psk, \
-                self.ssid, self.staMac, self.bssid)
+        self.eapol = EAPOLState(self.RSNinfo, self.psk,
+                                self.ssid, self.staMac, self.bssid)
+        self.eap = EAPState(self.staMac, self.bssid)
 
         # Initialize crypto handlers
         self.aesHandler = HandleAES()
@@ -119,42 +122,47 @@ class SULState:
 
     def _buildQueries(self):
         # Construct all the static frames that are supported by learner.
-        self.queries = {\
-            'AssoReq':RadioTap() / Dot11() / \
-                   Dot11AssoReq(cap="short-slot+ESS+privacy+short-preamble") / \
-                   Dot11Elt(ID='SSID', info=self.ssid) / \
-                   Dot11Elt(ID='Rates', info="\x82\x84\x02\x8b\x96\x04\x0b\x16\x0c\x12\x18\x24"),  \
-            \
-            'AssoResp':RadioTap() / Dot11() / Dot11AssoResp(), \
-            \
-            'Disas':RadioTap() / Dot11() / Dot11Disas(), \
-            \
-            'ReassoReq':RadioTap() / Dot11() / \
-                   Dot11ReassoReq(cap="short-slot+ESS+privacy+short-preamble") / \
-                   Dot11Elt(ID='SSID', info=self.ssid) / \
-                   Dot11Elt(ID='Rates', info="\x82\x84\x02\x8b\x96\x04\x0b\x16\x0c\x12\x18\x24") / \
-                   Dot11Elt(ID='RSNinfo', info=a2b_hex(self.RSNinfo)), \
-            \
-            'ReassoResp':RadioTap() / Dot11() / Dot11ReassoResp(), \
-            \
-            'Auth':RadioTap() / Dot11() / Dot11Auth(algo="open", seqnum=1), \
-            \
-            'Deauth':RadioTap() / Dot11() / Dot11Deauth(reason=7), \
-            \
-            'ProbeReq':RadioTap() / Dot11() / Dot11ProbeReq() / \
-                   Dot11Elt(ID='SSID', info=self.ssid) / \
-                   Dot11Elt(ID='Rates', info="\x82\x84\x02\x8b\x96\x04\x0b\x16\x0c\x12\x18\x24") / \
-                   Dot11Elt(ID='RSNinfo', info=a2b_hex(self.RSNinfo)), \
-            \
-            'ProbeResp':RadioTap() / Dot11() / Dot11ProbeResp() / \
-                   Dot11Elt(ID='Rates', info="\x82\x84\x02\x8b\x96\x04\x0b\x16\x0c\x12\x18\x24") / \
-                   Dot11Elt(ID='RSNinfo', info=a2b_hex(self.RSNinfo)), \
-            \
-            'DHCPDisc':LLC() / SNAP() / IP(src='0.0.0.0', dst='255.255.255.255') / \
-                   UDP(dport=67,sport=68) / BOOTP(op=1, chaddr=get_if_raw_hwaddr(self.iface)[1], xid=random.randint(0, 0xFFFFFFFF)) / \
-                   DHCP(options=[('message-type','discover'), 'end']),
-            \
-            'ARP':LLC() / SNAP() / ARP(op='who-has', pdst=self.gateway, psrc= self.ipsrc, hwsrc=self.staMac, hwdst=self.bssid)
+        self.queries = {
+            'AssoReq':(RadioTap() / Dot11()
+                       / Dot11AssoReq(cap="short-slot+ESS+privacy+short-preamble")
+                       / Dot11Elt(ID='SSID', info=self.ssid)
+                       / Dot11Elt(ID='Rates', info="\x82\x84\x02\x8b\x96\x04\x0b\x16\x0c\x12\x18\x24")),
+
+            'AssoResp':(RadioTap() / Dot11() / Dot11AssoResp()),
+
+            'Disas':(RadioTap() / Dot11() / Dot11Disas()),
+
+            'ReassoReq':(RadioTap() / Dot11()
+                         / Dot11ReassoReq(cap="short-slot+ESS+privacy+short-preamble")
+                         / Dot11Elt(ID='SSID', info=self.ssid)
+                         / Dot11Elt(ID='Rates', info="\x82\x84\x02\x8b\x96\x04\x0b\x16\x0c\x12\x18\x24")
+                         / Dot11Elt(ID='RSNinfo', info=a2b_hex(self.RSNinfo))),
+
+            'ReassoResp':RadioTap() / Dot11() / Dot11ReassoResp(),
+
+            'Auth':RadioTap() / Dot11() / Dot11Auth(algo="open", seqnum=1),
+
+            'Deauth':RadioTap() / Dot11() / Dot11Deauth(reason=7),
+
+            'ProbeReq':(RadioTap() / Dot11() / Dot11ProbeReq() / Dot11Elt(ID='SSID', info=self.ssid)
+                        / Dot11Elt(ID='Rates', info="\x82\x84\x02\x8b\x96\x04\x0b\x16\x0c\x12\x18\x24")
+                        / Dot11Elt(ID='RSNinfo', info=a2b_hex(self.RSNinfo))),
+
+            'ProbeResp':(RadioTap() / Dot11() / Dot11ProbeResp()
+                         / Dot11Elt(ID='Rates', info="\x82\x84\x02\x8b\x96\x04\x0b\x16\x0c\x12\x18\x24")
+                         / Dot11Elt(ID='RSNinfo', info=a2b_hex(self.RSNinfo))),
+
+            'DHCPDisc':(LLC() / SNAP() / IP(src='0.0.0.0', dst='255.255.255.255')
+                        / UDP(dport=67,sport=68)
+                        / BOOTP(op=1, chaddr=get_if_raw_hwaddr(self.iface)[1], xid=random.randint(0, 0xFFFFFFFF))
+                        / DHCP(options=[('message-type','discover'), 'end'])),
+
+            'ARP':(LLC() / SNAP()
+                   / ARP(op='who-has',
+                         pdst=self.gateway,
+                         psrc= self.ipsrc,
+                         hwsrc=self.staMac,
+                         hwdst=self.bssid))
             }
 
         # Hex rep of all possible RSN values (ciphersuites)

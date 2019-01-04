@@ -26,7 +26,7 @@ class EAPOLState:
         self.apMacbin = a2b_hex(apMac.lower().replace(':',''))
         self.staMacbin = a2b_hex(staMac.lower().replace(':',''))
 
-        # Initialize keys ready to be calculated after AP has sent it's nonce
+        # Initialize keys ready to be calculated after AP has sent its nonce
         self.ptk = '00'*64
         self.kck = '00'*16
         self.kek = '00'*16
