@@ -80,7 +80,7 @@ def _filter(sul, x):
             not (x.type == 0 and x.subtype == 9) and
             not (x.type == 0 and x.subtype == 13) and
             not (x.type == 2 and x.subtype == 4) and
-            ((x.SC >> 4) > sul.last_sc_receive or x.haslayer(EAP)) and
+            ((x.SC >> 4) > sul.last_sc_receive) and
             not (x.haslayer(IP) and _isBroadCastIP(x.getlayer(IP).dst)) and
             not ((str(x.addr3)[:8] == '01:00:5e') or
                  (str(x.addr1)[:8] == '01:00:5e') or
@@ -89,6 +89,12 @@ def _filter(sul, x):
                  (str(x.addr3) == 'ff:ff:ff:ff:ff:ff') or
                  (str(x.addr1) == 'ff:ff:ff:ff:ff:ff')))
            #not (x.haslayer(Dot11WEP) and _checkDecryptBroadcast(sul, x))
+
+    if filt:
+        print('## SC value: %s'
+              % str(x.SC >> 4))
+        print('## Last SC value: %s'
+              % str(sul.last_sc_receive))
 
     return filt
 
@@ -313,8 +319,9 @@ def assoc(sul, rsn=None):
                 sul.send(sul.queries['Deauth'], count=5)
                 time.sleep(1)
                 continue
-            if assoc_response.getlayer(Dot11AssoResp).status == 0: # TODO Sort out code 43: invalid AKMP
+            if assoc_response.getlayer(Dot11AssoResp).status == 0:
                 print '$ Associated.'
+                sul.last_sc_receive = -1 # TODO this might be if EAP
                 return 'ACCEPT', assoc_response.time, 0
             else:
                 print('$ Association rejected. Status code %s'

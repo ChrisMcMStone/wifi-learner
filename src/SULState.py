@@ -23,7 +23,7 @@ class SULState:
         self.psk = psk
         # Sequence counters
         self.sc_send = 0
-        # Send and recieve times
+        # Send and receive times
         self.last_sc_receive = -1
         self.last_time_receive = 0.0
         # Required for EAPOL frames
