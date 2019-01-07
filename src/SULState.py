@@ -12,7 +12,7 @@ import utility.utils, os
 # Maintains the state for the System Under Learning.
 class SULState:
 
-    def __init__(self, iface, ssid, psk, bssid, rsnInfo, gateway):
+    def __init__(self, iface, ssid, psk, bssid, rsnInfo, gateway, user_id=None, anon_id=None):
         self.iface = iface
         self.sniffPipe = None
         # Set MAC addresses
@@ -43,7 +43,9 @@ class SULState:
         # Initialize state of handshake for supplicant
         self.eapol = EAPOLState(self.RSNinfo, self.psk,
                                 self.ssid, self.staMac, self.bssid)
-        self.eap = EAPState(self.staMac, self.bssid)
+        # Initialize state of EAP message
+        if user_id:
+            self.eap = EAPState(self.staMac, self.bssid, user_id, anon_id)
 
         # Initialize crypto handlers
         self.aesHandler = HandleAES()
@@ -51,6 +53,7 @@ class SULState:
 
     def reset(self):
         self.sc_send = 0
+
         #self.last_sc_receive = -1
         # Deauthenticate previously associated MAC to free up memory
         self.send(self.queries['Deauth'], count=5)
@@ -71,11 +74,14 @@ class SULState:
 
     # Send raw packet
     def send(self, packet, count=1, addr1=None, addr2=None, addr3=None):
+
         packet.SC = (self.sc_send << 4)
+
         if not addr1:
             packet.addr1 = self.bssid
         else:
             packet.addr1 = addr1
+
         if not addr2:
             packet.addr2 = self.staMac
         else:
@@ -87,6 +93,12 @@ class SULState:
 
         self.sc_send = self.sc_send + 1
         sendp(packet, iface=self.iface, verbose=0, count=count)
+
+    def sendAck(self):
+        ''
+        #packet = self.queries['Ack']
+        #packet.addr1 = self.bssid
+        #sendp(packet, iface=self.iface, verbose=0)
 
     # Send frame encrypted with AES-CCMP
     def sendAESFrame(self, payload, addr1, addr2, addr3, count=1):
@@ -143,6 +155,8 @@ class SULState:
             'Auth':RadioTap() / Dot11() / Dot11Auth(algo='open', seqnum=1),
 
             'Deauth':RadioTap() / Dot11() / Dot11Deauth(reason=7),
+
+            'Ack':RadioTap() / Dot11() / Dot11Ack(),
 
             'ProbeReq':(RadioTap() / Dot11() / Dot11ProbeReq() / Dot11Elt(ID='SSID', info=self.ssid)
                         / Dot11Elt(ID='Rates', info='\x82\x84\x02\x8b\x96\x04\x0b\x16\x0c\x12\x18\x24')

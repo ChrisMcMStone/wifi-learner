@@ -41,35 +41,35 @@ def _filter(sul, x):
     # print 'RSC = ' + str(x.SC)
     # TODO remove, assoc and auth frame filtering (need to deal with reset SC when eapol handshake starts).
 
-#    try:
-#        (x[Dot11][EAP].show())
-#        print('######### PACKET START ##############')
-#        print(x.show())
-#        print('######### PACKET END  ##############')
-#        print('######### PACKET TEST START  ##############')
-#        print(x is not None)
-#        print(x.time > sul.last_time_receive)
-#        print(x.addr1 == sul.staMac)
-#        print(x.type != 1)
-#        print(not (x.type == 0 and x.subtype == 1))
-#        print(not (x.type == 0 and x.subtype == 11))
-#        print(not (x.type == 0 and x.subtype == 9))
-#        print(not (x.type == 0 and x.subtype == 13))
-#        print(not (x.type == 2 and x.subtype == 4))
-#        print((x.SC >> 4) > sul.last_sc_receive)
-#        print(not (x.haslayer(IP) and _isBroadCastIP(x.getlayer(IP).dst)))
-#        print(not ((str(x.addr3)[:8] == '01:00:5e') or
-#             (str(x.addr1)[:8] == '01:00:5e') or
-#             (str(x.addr3)[:5] == '33:33') or
-#             (str(x.addr1)[:5] == '33:33') or
-#             (str(x.addr3) == 'ff:ff:ff:ff:ff:ff') or
-#             (str(x.addr1) == 'ff:ff:ff:ff:ff:ff')))
-#        print('######### PACKET TEST END  ##############')
-#        print('SC = %s, last_sc_receive = %s'
-#              % (str(x.SC), str(sul.last_sc_receive)))
-#        print('############# SC ##################')
-#    except IndexError:
-#         ''
+    #try:
+    #    (x[Dot11][EAP].show())
+    #    print('######### PACKET START ##############')
+    #    print(x.show())
+    #    print('######### PACKET END  ##############')
+    #    print('######### PACKET TEST START  ##############')
+    #    print(x is not None)
+    #    print(x.time > sul.last_time_receive)
+    #    print(x.addr1 == sul.staMac)
+    #    print(x.type != 1)
+    #    print(not (x.type == 0 and x.subtype == 1))
+    #    print(not (x.type == 0 and x.subtype == 11))
+    #    print(not (x.type == 0 and x.subtype == 9))
+    #    print(not (x.type == 0 and x.subtype == 13))
+    #    print(not (x.type == 2 and x.subtype == 4))
+    #    print((x.SC >> 4) > sul.last_sc_receive)
+    #    print(not (x.haslayer(IP) and _isBroadCastIP(x.getlayer(IP).dst)))
+    #    print(not ((str(x.addr3)[:8] == '01:00:5e') or
+    #         (str(x.addr1)[:8] == '01:00:5e') or
+    #         (str(x.addr3)[:5] == '33:33') or
+    #         (str(x.addr1)[:5] == '33:33') or
+    #         (str(x.addr3) == 'ff:ff:ff:ff:ff:ff') or
+    #         (str(x.addr1) == 'ff:ff:ff:ff:ff:ff')))
+    #    print('######### PACKET TEST END  ##############')
+    #    print('SC = %s, last_sc_receive = %s'
+    #          % (str(x.SC), str(sul.last_sc_receive)))
+    #    print('############# SC ##################')
+    #except IndexError:
+    #     ''
 
     filt = (x is not None and
             x.time > sul.last_time_receive and
@@ -90,11 +90,11 @@ def _filter(sul, x):
                  (str(x.addr1) == 'ff:ff:ff:ff:ff:ff')))
            #not (x.haslayer(Dot11WEP) and _checkDecryptBroadcast(sul, x))
 
-    if filt:
-        print('## SC value: %s'
-              % str(x.SC >> 4))
-        print('## Last SC value: %s'
-              % str(sul.last_sc_receive))
+    #if filt:
+    #    print('## SC value: %s'
+    #          % str(x.SC >> 4))
+    #    print('## Last SC value: %s'
+    #          % str(sul.last_sc_receive))
 
     return filt
 
@@ -225,8 +225,8 @@ def query(sul, cmd):
             if cipher: cipher = '0'+str(hex(cipher))[2:]
             if kf: kf = str(kf).zfill(2)
 
-            message4 = sul.eapol.buildFrame4(rc, Snonce=nonce, invalidMic=invalidMic, \
-                    rsnInfo=rsne, kd=kd, cipher=cipher, kf=kf)
+            message4 = sul.eapol.buildFrame4(rc, Snonce=nonce, invalidMic=invalidMic,
+                                             rsnInfo=rsne, kd=kd, cipher=cipher, kf=kf)
         sul.send(message4)
 
     elif cmd == 'ENC_DATA':
@@ -264,12 +264,22 @@ def query(sul, cmd):
 
     elif 'EAP_RESP' in cmd:
         # TODO
-        # Extract parameters, format e.g. EAP_RESP(ANON_ID=ANON|ID=ID)
-        params = cmd[8:-2].split('|')
-        anon_id = params[0]
-        _id = params[1]
-        packet = sul.eap.id_resp(_id, anon_id)
+        # Extract parameters, format e.g. EAP_RESP(INFO=ID),
+        # EAP_RESP(ENC_TYPE=TTLS) Only TTLS supported atm
+
+        params = cmd[8:-1].split('=')
+        if 'INFO' in params[0]:
+            if 'ID' in params[1]:
+                packet = sul.eap.id_resp()
+        elif 'ENC_TYPE' in params[0]:
+            packet = sul.eap.enc_resp(params[1])
+
         sul.send(packet)
+        # packet.addr1 = sul.bssid
+        # packet.addr2 = sul.staMac
+        # packet.addr3 = sul.bssid
+        # packet.SC = 0
+        # sendp(packet, iface=sul.iface, verbose=0)
 
     else:
         message = sul.queries[cmd]
@@ -375,16 +385,17 @@ def genAbstractOutput(sul, p):
                 pstring = 'ENC_DATA_UNKNOWN'
 
         sc = (p.SC >> 4)
+        sul.sendAck()
         return pstring, p.time, sc
 
     # try eap
     try:
         eapp = p[EAP]
-        pstring = 'EAP'
-        sc = (p.SC >> 4)
-        return pstring, p.time, sc
+        sul.sendAck()
+        return parse_eap(p,eapp)
+
     except IndexError:
-        ''
+        'Not an EAP packet'
 
     # If EAPOL handshake message
     p = p[Dot11]
@@ -402,6 +413,7 @@ def genAbstractOutput(sul, p):
         pstring = _parseResponse(p, sul)
     sc = (p.SC >> 4)
     # Return string of packet, timestamp and sequence counter
+    sul.sendAck()
     return pstring, p.time, sc
 
 def _parseResponse(p, sul):
@@ -414,3 +426,31 @@ def _parseResponse(p, sul):
             return p.summary().split('Dot11', 1)[1].split(' ', 1)[0]
         return p.summary()
 
+# parse packet, EAP layer
+def parse_eap(p, eapp):
+        pstring = 'EAP'
+
+        # https://www.iana.org/assignments/eap-numbers/eap-numbers.xml#eap-numbers-1
+        if eapp.code == 1 :
+            pstring += '_REQUEST'
+            pstring += '('
+            # EAP types is from scapy eap.py TODO clean namespace
+            pstring += 'TYPE=%s(%s)' % (eapp.type, eap_types[eapp.type].upper())
+            pstring += ')'
+        elif eapp.code == 2 :
+            pstring += '_RESPONSE'
+        elif eapp.code == 3 :
+            pstring += '_SUCCESS'
+        elif eapp.code == 4 :
+            pstring += '_FAILURE'
+        elif eapp.code == 5 :
+            pstring += '_INITIATE'
+        elif eapp.code == 6 :
+            pstring += '_FINISH'
+        else:
+            pstring += '_INVALID_CODE'
+
+
+        sc = (p.SC >> 4)
+
+        return pstring, p.time, sc

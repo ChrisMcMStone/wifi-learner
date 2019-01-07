@@ -93,7 +93,14 @@ class EAPOLState:
                         # ReplayCounter=rc, invalidMic=invalidMic, \
                         # rsnInfo=rsne, kd=kd, cipher=cipher)
 
-    def buildFrame4(self, ReplayCounter, Snonce=None, invalidMic=False, rsnInfo=None, kd=None, cipher=None, kf=None):
+    def buildFrame4(self,
+                    ReplayCounter,
+                    Snonce=None,
+                    invalidMic=False,
+                    rsnInfo=None,
+                    kd=None,
+                    cipher=None,
+                    kf=None):
 
         frameToMIC = None
         # Set up 4th EAPOL frame with zero-ed out MIC

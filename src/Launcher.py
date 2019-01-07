@@ -39,7 +39,7 @@ def getRSNInfo(p):
 # set WiFi interfaces to channel target AP is operating on.
 def set_up_sul():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'hi:t:s:p:m:g:')
+        opts, args = getopt.getopt(sys.argv[1:], 'hi:t:s:p:m:g:u:')
     except getopt.GetoptError, e:
         print(str(e))
         showhelp()
@@ -47,7 +47,13 @@ def set_up_sul():
 
     opts = dict([(k.lstrip('-'), v) for (k, v) in opts])
 
-    if 'h' in opts or 'i' not in opts or 't' not in opts or 's' not in opts or 'p' not in opts or 'm' not in opts:
+    if ('h' in opts
+            or 'i' not in opts
+            or 't' not in opts
+            or 's' not in opts
+            or 'p' not in opts
+            or 'm' not in opts):
+
         showhelp()
         exit(0)
 
@@ -55,6 +61,16 @@ def set_up_sul():
     sniff_iface = opts.get('t')
     ssid = opts.get('s')
     psk = opts.get('p')
+    if 'u' in opts:
+        user_id = opts.get('u')
+        eap = True
+        if 'a' in opts:
+            anon_id = opts.get('a')
+        else:
+            anon_id = None
+    else:
+        eap = False
+
     mode = opts.get('m')
 
     if 'g' not in opts:
@@ -90,7 +106,10 @@ def set_up_sul():
         get_if_raw_hwaddr(sniff_iface)[1])
     print 'Injector address: %s' % str2mac(get_if_raw_hwaddr(inject_iface)[1])
     # SULState.py line 14 `def __init__(self, iface, ssid, psk, bssid, rsnInfo, gateway):`
-    sul = SULState(inject_iface, ssid, psk, bssid, rsnInfo, gateway)
+    if not eap:
+        sul = SULState(inject_iface, ssid, psk, bssid, rsnInfo, gateway)
+    else:
+        sul = SULState(inject_iface, ssid, psk, bssid, rsnInfo, gateway, user_id=user_id, anon_id=anon_id)
 
     return sul, mode, sniff_iface
 

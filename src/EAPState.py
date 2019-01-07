@@ -8,7 +8,7 @@ class EAPState:
     Holds the state of EAP
     """
 
-    def __init__(self, staMac, apMac):
+    def __init__(self, staMac, apMac, user_id, anon_id=None):
         """
         Constructor for EAP state machine
 
@@ -16,28 +16,37 @@ class EAPState:
 
         :param staMac: static MAC, for injector card
         :param apMac: access point MAC
-        :param anon_iden: radius logon anonymous identity
-        :param iden: radius logon identity
+        :param anon_id: radius logon anonymous id
+        :param user_id: radius logon user id
         """
         self.staMac = staMac
         self.apMac = apMac
+        self.user_id = user_id
+        self.anon_id = anon_id
 
         # Base header packet for EAPOL communication
-        self.base_packet = (
-            sc.Ether(dst=self.apMac, src=self.staMac, type=0x888e) /
-            sc.EAPOL(version='802.1X-2001', type='EAP-Packet'))
+        self.base_packet = (sc.RadioTap()
+                            / sc.Dot11(FCfield='to-DS')
+                            / sc.LLC()
+                            / sc.SNAP()
+                            / sc.EAPOL(version='802.1X-2001', type='EAP-Packet'))
 
 
-    def id_resp(self, iden, anon_iden):
-        self.iden = iden
-        self.anon_iden = anon_iden
+    def id_resp(self):
         """
-        Create optionally anonymous identity response packet
+        Create optionally anonymous user id response packet
         """
-        pac = (
-            self.base_packet /
-            sc.EAP(code='Response',
-                   id=1, type='Identity', identity=self.anon_iden))
+        if self.anon_id:
+            pac = (
+                self.base_packet /
+                sc.EAP(code='Response',
+                       id=1, type='Identity', identity=self.anon_id))
+        else:
+            pac = (
+                self.base_packet /
+                sc.EAP(code='Response',
+                       id=1, type='Identity', identity=self.user_id))
+
         pac[sc.EAP].len = len(pac[sc.EAP])
         pac[sc.EAPOL].len = pac[sc.EAP].len
         return pac
@@ -51,11 +60,17 @@ class EAPState:
 
         :param enc_type: EAP encryption type
         """
+
+        # Supported auth types
+        auth_types = {
+            'TTLS':21
+        }
+
         self.enc_type = enc_type
         pac = (
             self.base_packet /
             sc.EAP(code='Response',
-                   id=2, type='Legacy Nak', desired_auth_type=enc_type))
+                   id=2, type='Legacy Nak', desired_auth_type=auth_types[enc_type]))
         pac[sc.EAP].len = len(pac[sc.EAP])
         pac[sc.EAPOL].len = pac[sc.EAP].len
         return pac
