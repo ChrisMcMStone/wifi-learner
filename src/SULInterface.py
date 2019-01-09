@@ -263,7 +263,6 @@ def query(sul, cmd):
         sul.send(RadioTap()/Dot11()/sul.queries['ARP'],addr1=addr1, addr2=addr2, addr3=addr3)
 
     elif 'EAP_RESP' in cmd:
-        # TODO
         # Extract parameters, format e.g. EAP_RESP(INFO=ID),
         # EAP_RESP(ENC_TYPE=TTLS) Only TTLS supported atm
 
@@ -271,15 +270,18 @@ def query(sul, cmd):
         if 'INFO' in params[0]:
             if 'ID' in params[1]:
                 packet = sul.eap.id_resp()
+                sul.send(packet)
         elif 'ENC_TYPE' in params[0]:
             packet = sul.eap.enc_resp(params[1])
+            sul.send(packet)
 
-        sul.send(packet)
-        # packet.addr1 = sul.bssid
-        # packet.addr2 = sul.staMac
-        # packet.addr3 = sul.bssid
-        # packet.SC = 0
-        # sendp(packet, iface=sul.iface, verbose=0)
+
+    elif 'EAP_TTLS' in cmd:
+        # EAP_TTLS(CLIENT_HELLO)
+        param = cmd[8:-1]
+        if 'CLIENT_HELLO' in param:
+            packet = sul.eap.client_hello()
+            sul.send(packet)
 
     else:
         message = sul.queries[cmd]
@@ -325,12 +327,12 @@ def assoc(sul, rsn=None):
             assoc_response = psniff(sul, lambda x: (x.haslayer(Dot11AssoResp)
                                                     and x.addr1 == sul.staMac))
             if not assoc_response:
-                print '$ Failed to Associate, retrying...'
+                print('$ Failed to Associate, retrying...')
                 sul.send(sul.queries['Deauth'], count=5)
                 time.sleep(1)
                 continue
             if assoc_response.getlayer(Dot11AssoResp).status == 0:
-                print '$ Associated.'
+                print('$ Associated.')
                 sul.last_sc_receive = -1 # TODO this might be if EAP
                 return 'ACCEPT', assoc_response.time, 0
             else:
@@ -339,7 +341,7 @@ def assoc(sul, rsn=None):
                 return 'REJECT', assoc_response.time, 0
 
         except Exception as e:
-            print 'ERROR in association'
+            print('ERROR in association')
             print(e)
             continue
 
@@ -392,7 +394,7 @@ def genAbstractOutput(sul, p):
     try:
         eapp = p[EAP]
         sul.sendAck()
-        return parse_eap(p,eapp)
+        return parse_eap(sul, p,eapp)
 
     except IndexError:
         'Not an EAP packet'
@@ -427,16 +429,60 @@ def _parseResponse(p, sul):
         return p.summary()
 
 # parse packet, EAP layer
-def parse_eap(p, eapp):
+def parse_eap(sul, p, eapp):
         pstring = 'EAP'
+        sul.eap.count_id = eapp.id
 
         # https://www.iana.org/assignments/eap-numbers/eap-numbers.xml#eap-numbers-1
         if eapp.code == 1 :
             pstring += '_REQUEST'
-            pstring += '('
-            # EAP types is from scapy eap.py TODO clean namespace
-            pstring += 'TYPE=%s(%s)' % (eapp.type, eap_types[eapp.type].upper())
-            pstring += ')'
+
+            try:
+                server_hello = bool(p.M)
+            except:
+                server_hello = False
+
+            if not server_hello:
+                # Asking for username
+                pstring += '('
+                # EAP types is from scapy eap.py TODO clean namespace
+                pstring += 'TYPE=%s(%s)' % (eapp.type, eap_types[eapp.type].upper())
+                pstring += ')'
+            else:
+                # Start of server hello message
+                pstring += '(SERVER_HELLO)'
+                sh_data = [] # Server hello data
+
+                while True:
+                    # Save current packet data and read next packet while
+                    # more bit is set
+
+                    # Get more bit
+                    try:
+                        server_hello = bool(p.M)
+                    except:
+                        server_hello = False
+
+                    # Save Data
+                    sh_data.append(eapp.data)
+
+                    # Send ACK
+                    sul.send(sul.eap.sh_resp())
+
+                    # Read next packet and loop
+                    sul.last_sc_receive = (p.SC >> 4)
+                    p = psniff(sul, lambda x: _filter(sul, x))
+
+                    eapp = p[EAP]
+                    sul.eap.count_id = eapp.id
+
+                    # If more bit
+                    if not server_hello:
+                        break
+
+                # Construct TLS packet
+                tls_packet = TLS(''.join(sh_data))
+
         elif eapp.code == 2 :
             pstring += '_RESPONSE'
         elif eapp.code == 3 :

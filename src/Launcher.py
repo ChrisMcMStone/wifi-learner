@@ -1,20 +1,29 @@
 #! /usr/bin/env python
 
-import getopt, logging, random, os, socket, signal, subprocess, sys, time, traceback
+from __future__ import print_function
+
+from SULState import SULState
+from SnifferProcess import sniff as msniff
 from binascii import b2a_hex
 from multiprocessing import Process
-import scapy.layers.dot11 as dot11
 from scapy.all import get_if_raw_hwaddr, L2Socket, str2mac, sniff, ETH_P_ALL
-import SULInterface
-from SnifferProcess import sniff as msniff
-from SULState import SULState
 from utility.utils import randomMAC
+import SULInterface
+import getopt, logging, random, os, socket, signal, subprocess, sys, time, traceback
+import scapy.layers.dot11 as dot11
 
 # Show launch parameters
 # TODO extend this
 def showhelp():
-    print('\nSyntax: ./Launcher.py -i <inject_interface>, -t <sniff_interface>'
-          + ' -s <ssid> -p <pre-shared key> -m query_mode [-g gateway IP]\n')
+    print('''usage: ./Launcher.py
+      -i <inject_interface>
+      -t <sniff_interface>
+      -s <ssid>
+      -p <pre-shared key>
+      -m query_mode
+      [-g gateway IP]
+      [-u eap username]
+          ''')
 
 # Extract the 'Robust Security Network' info element from
 # the AP Beacons. This contains the supported cipher suites (AES, TKIP, WEP)
@@ -101,10 +110,15 @@ def set_up_sul():
                 except TypeError:
                     continue
 
-    print 'Detected beacon from %s on channel %d...' % (ssid, channel)
-    print 'Sniffer MAC address: %s' % str2mac(
-        get_if_raw_hwaddr(sniff_iface)[1])
-    print 'Injector address: %s' % str2mac(get_if_raw_hwaddr(inject_iface)[1])
+    print('Detected beacon from %s on channel %d...'
+          % (ssid, channel))
+
+    print('Sniffer MAC address: %s' % str2mac(
+        get_if_raw_hwaddr(sniff_iface)[1]))
+
+    print('Injector address: %s'
+          % str2mac(get_if_raw_hwaddr(inject_iface)[1]))
+
     # SULState.py line 14 `def __init__(self, iface, ssid, psk, bssid, rsnInfo, gateway):`
     if not eap:
         sul = SULState(inject_iface, ssid, psk, bssid, rsnInfo, gateway)
@@ -169,10 +183,10 @@ if __name__ == '__main__':
             try:
                 msniff(s, rdpipe, wrpipe, None)
             except:
-                print 'ERROR with sniffing process'
+                print('ERROR with sniffing process')
                 raise
         elif pid < 0:
-            print 'ERROR fork failed'
+            print('ERROR fork failed')
         else:
             wrpipe.close()
             try:
@@ -186,9 +200,9 @@ if __name__ == '__main__':
                                 sys.exit(0)
 
                             query = query.strip()
-                            print 'QUERY: ' + query
+                            print('QUERY: ' + query)
                             response = query_execute(sul, query)
-                            print 'RESPONSE: ' + response
+                            print('RESPONSE: ' + response)
 
                 elif mode == 'socket':
                     # Set up TCP socket with state machine learner software
@@ -199,7 +213,7 @@ if __name__ == '__main__':
                     s.bind((HOST, PORT))
                     s.listen(1)
                     conn, addr = s.accept()
-                    print 'Connected by', addr
+                    print('Connected by', addr)
                     # Run endless loop receiving and forwarding on query/responses
                     while 1:
                         data = conn.recv(1024)
@@ -209,14 +223,14 @@ if __name__ == '__main__':
                         # The learner can modify the timeout value which this
                         # program with use to wait for responses.
                         if 'TIMEOUT_MODIFY' in query:
-                            print 'MODIFYING TIMEOUT VALUE to ' + query[15:]
+                            print('MODIFYING TIMEOUT VALUE to ' + query[15:])
                             sul.TIMEOUT = float(query[15:])
                             conn.sendall('DONE'+'\n')
                             continue
 
-                        print 'QUERY: ' + query
+                        print('QUERY: ' + query)
                         response = query_execute(sul, query)
-                        print 'RESPONSE: ' + response
+                        print('RESPONSE: ' + response)
                         if response:
                             conn.sendall(response+'\n')
             except SystemExit:
