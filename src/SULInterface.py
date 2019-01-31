@@ -5,6 +5,7 @@ from binascii import *
 from EAPOLState import EAPOLState
 from Cryptodome.Cipher import AES
 import cPickle,os,sys,time,subprocess
+from TLSState import TLSState
 
 
 # Sniff for pairwise/unicast traffic
@@ -281,6 +282,10 @@ def query(sul, cmd):
         param = cmd[8:-1]
         if 'CLIENT_HELLO' in param:
             packet = sul.eap.client_hello()
+            sul.tlsstate = TLSState(packet, sul)
+            sul.send(packet)
+        elif 'CLIENT_KEY_EX' in param:
+            packet = sul.tlsstate.client_key_exchange()
             sul.send(packet)
 
     else:
@@ -435,14 +440,15 @@ def parse_eap(sul, p, eapp):
 
         # https://www.iana.org/assignments/eap-numbers/eap-numbers.xml#eap-numbers-1
         if eapp.code == 1 :
-            pstring += '_REQUEST'
 
-            try:
+            try: # TODO When extending to other types (eg. eap-pwd or eap-tls)
+                 # this condition will have to be properly created
                 server_hello = bool(p.M)
             except:
                 server_hello = False
 
             if not server_hello:
+                pstring += '_REQUEST'
                 # Asking for username
                 pstring += '('
                 # EAP types is from scapy eap.py TODO clean namespace
@@ -450,7 +456,8 @@ def parse_eap(sul, p, eapp):
                 pstring += ')'
             else:
                 # Start of server hello message
-                pstring += '(SERVER_HELLO)'
+                pstring +='_TTLS'
+                pstring += '('
                 sh_data = [] # Server hello data
 
                 while True:
@@ -480,8 +487,21 @@ def parse_eap(sul, p, eapp):
                     if not server_hello:
                         break
 
-                # Construct TLS packet
+                # Construct TLS packet and extract server public key
                 tls_packet = TLS(''.join(sh_data))
+                sul.tlsstate.server_hello(tls_packet)
+
+                # pstring += ('|CONTENT=%s' % ','.join(
+                #     map(lambda x: TLS_CONTENT_TYPES[x.content_type].upper(),
+                #         sul.tlsstate.server_hello.records)))
+
+                pstring += ('HANDSHAKES=%s' % ','.join(
+                    map(lambda x: TLS_HANDSHAKE_TYPES[x.handshakes[0].type].upper(),
+                        sul.tlsstate.server_hello.records)))
+
+                # pstring += ('|PK=%s'
+                #             % base64.b16encode(str(sul.tlsstate.server.modulus)))
+                pstring += ')'
 
         elif eapp.code == 2 :
             pstring += '_RESPONSE'

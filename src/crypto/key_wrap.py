@@ -1,10 +1,10 @@
 '''
-Key wrapping and unwrapping as defined in RFC 3394.  
-Also a padding mechanism that was used in openssl at one time.  
+Key wrapping and unwrapping as defined in RFC 3394.
+Also a padding mechanism that was used in openssl at one time.
 The purpose of this algorithm is to encrypt a key multiple times to add an extra layer of security.
-Personally, I wouldn't recommend using this for most applications.  
-Just use AES/mode CTR to encrypt your keys, the same as you would any other data.  
-The time to use this code is when you need compatibility with another system that implements the RFC.  
+Personally, I wouldn't recommend using this for most applications.
+Just use AES/mode CTR to encrypt your keys, the same as you would any other data.
+The time to use this code is when you need compatibility with another system that implements the RFC.
 (For example, these functions are compatible with the openssl functions of the same name.)
 Performance should be reasonable, since the heavy lifting is all done in PyCrypto's AES.
 '''
