@@ -38,7 +38,6 @@ def getRSNInfo(p):
         if curr == None:
             return None
         if(curr.name == '802.11 Information Element' and curr.ID == 48):
-            print('RSN TAG')
             return str(b2a_hex(curr.info))
         i += 1
         p = p.getlayer(0)

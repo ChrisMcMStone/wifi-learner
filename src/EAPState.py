@@ -1,14 +1,15 @@
 #!/bin/usr/env python
 
 import scapy.all as sc
-import TLS
+import TLSState
 
 class EAPState:
     '''
     Holds the state of EAP
     '''
 
-    def __init__(self, staMac, apMac, user_id, anon_id=None):
+    # SULState is only used here for the base packet header
+    def __init__(self, staMac, apMac, user_id, sul, anon_id=None):
         '''
         Constructor for EAP state machine
 
@@ -24,15 +25,7 @@ class EAPState:
         self.user_id = user_id
         self.anon_id = anon_id
         self.count_id = 1
-
-        # Base header packet for EAPOL communication
-        # (@ FCfield Don't know why this value but looking at wireshark, this is sent)
-        self.base_packet = (sc.RadioTap()
-                            / sc.Dot11(FCfield=0x8801)
-                            / sc.LLC()
-                            / sc.SNAP()
-                            / sc.EAPOL(version='802.1X-2001', type='EAP-Packet'))
-
+        self.sul = sul
 
     def id_resp(self):
         '''
@@ -40,12 +33,12 @@ class EAPState:
         '''
         if self.anon_id:
             pac = (
-                self.base_packet /
+                self.sul.queries['HEADER'] /
                 sc.EAP(code='Response',
                        id=self.count_id, type='Identity', identity=self.anon_id))
         else:
             pac = (
-                self.base_packet /
+                self.sul.queries['HEADER'] /
                 sc.EAP(code='Response',
                        id=self.count_id, type='Identity', identity=self.user_id))
 
@@ -68,7 +61,7 @@ class EAPState:
 
         self.enc_type = enc_type
         pac = (
-            self.base_packet /
+            self.sul.queries['HEADER'] /
             sc.EAP(code='Response',
                    id=self.count_id, type='Legacy Nak', desired_auth_type=auth_types[enc_type]))
         pac[sc.EAP].len = len(pac[sc.EAP])
@@ -92,7 +85,7 @@ class EAPState:
             / self.ch])
 
         pac = (
-            self.base_packet /
+            self.sul.queries['HEADER'] /
             sc.EAP_TTLS(code='Response',
                         id=self.count_id, type='EAP-TTLS',
                         L=0, M=0, S=0, reserved=0, version=0,
@@ -105,7 +98,7 @@ class EAPState:
         '''
         # Type 21 - TTLS
         pac = (
-            self.base_packet /
+            self.sul.queries['HEADER'] /
             sc.EAP(code='Response',
                    id=self.count_id, type=21))
         return pac

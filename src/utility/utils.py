@@ -6,6 +6,12 @@ from zlib import crc32
 from Cryptodome.Cipher import AES
 import os
 
+def long2bytes(n):
+    length = 10
+    #s = str(n)
+    #length = len(s)
+    return ('%%0%dx' % (length << 1) % n).decode('hex')[-length:]
+
 ## Code taken and adapted from https://github.com/beurdouche/tools/blob/master/pyrit/pyrit/cpyrit/
 
 def str2hex(string):

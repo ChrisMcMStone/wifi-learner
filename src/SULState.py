@@ -45,7 +45,8 @@ class SULState:
                                 self.ssid, self.staMac, self.bssid)
         # Initialize state of EAP message
         if user_id:
-            self.eap = EAPState(self.staMac, self.bssid, user_id, anon_id)
+            self.eap = EAPState(self.staMac, self.bssid, user_id, self, anon_id)
+            self.tls = None
 
         # Initialize crypto handlers
         self.aesHandler = HandleAES()
@@ -176,8 +177,16 @@ class SULState:
                          pdst=self.gateway,
                          psrc= self.ipsrc,
                          hwsrc=self.staMac,
-                         hwdst=self.bssid))
-            }
+                         hwdst=self.bssid)),
+
+            # Base header packet for EAPOL communication
+            # (@ FCfield Don't know why this value but looking at wireshark, this is sent)
+            'HEADER': (RadioTap()
+                       / Dot11(FCfield=0x8801)
+                       / LLC()
+                       / SNAP()
+                       / EAPOL(version='802.1X-2001', type='EAP-Packet'))
+        }
 
         # Hex rep of all possible RSN values (ciphersuites)
         self.rsnvals = {'tc':'0100000fac020100000fac040100000fac02',
