@@ -324,9 +324,7 @@ def assoc(sul, rsn=None):
             if rsn == None:
                 sul.send(sul.queries['AssoReq'] / Dot11Elt(ID='RSNinfo', info=a2b_hex(sul.RSNinfoReal)))
             else:
-                # EAP bodge for now
-                sul.send(sul.queries['AssoReq'] / Dot11Elt(ID='RSNinfo', info=a2b_hex(sul.RSNinfoReal)))
-                #sul.send(sul.queries['AssoReq'] / Dot11Elt(ID='RSNinfo', info=a2b_hex))
+                sul.send(sul.queries['AssoReq'] / Dot11Elt(ID='RSNinfo', info=a2b_hex))
 
 
             assoc_response = psniff(sul, lambda x: (x.haslayer(Dot11AssoResp)

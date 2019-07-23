@@ -205,7 +205,7 @@ if __name__ == '__main__':
 
                 elif mode == 'socket':
                     # Set up TCP socket with state machine learner software
-                    HOST = '127.0.0.1'
+                    HOST = '0.0.0.0'
                     PORT = 4444
                     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
