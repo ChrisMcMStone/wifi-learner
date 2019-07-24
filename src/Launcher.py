@@ -160,6 +160,10 @@ def query_execute(sul, query):
             return p
         else:
             return p + ',0.0'
+        #if 'DATA' in p or 'REJECT' in p:
+        #    return p + ',0.0'
+        #elif 'TIMEOUT' in p:
+        #    return p
         #else:
         #    return p + ',' + str(tdiff)
 
