@@ -6,6 +6,7 @@ from EAPOLState import EAPOLState
 from Cryptodome.Cipher import AES
 import cPickle,os,sys,time,subprocess
 from TLSState import TLSState
+import traceback
 
 
 # Sniff for pairwise/unicast traffic
@@ -324,7 +325,7 @@ def assoc(sul, rsn=None):
             if rsn == None:
                 sul.send(sul.queries['AssoReq'] / Dot11Elt(ID='RSNinfo', info=a2b_hex(sul.RSNinfoReal)))
             else:
-                sul.send(sul.queries['AssoReq'] / Dot11Elt(ID='RSNinfo', info=a2b_hex))
+                sul.send(sul.queries['AssoReq'] / Dot11Elt(ID='RSNinfo', info=a2b_hex(sul.rsnvals[rsn]+'0000')))
 
 
             assoc_response = psniff(sul, lambda x: (x.haslayer(Dot11AssoResp)
@@ -346,6 +347,7 @@ def assoc(sul, rsn=None):
         except Exception as e:
             print('ERROR in association')
             print(e)
+            traceback.print_exc()
             continue
 
     return 'TIMEOUT', 0, 0
@@ -387,7 +389,7 @@ def genAbstractOutput(sul, p):
                 pstring = 'TKIP_DATA'
             except Exception as e:
                 print(e)
-                pstring = 'ENC_DATA_UNKNOWN'
+                pstring = 'AES_DATA'
 
         sc = (p.SC >> 4)
         sul.sendAck()

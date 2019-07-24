@@ -153,12 +153,15 @@ def query_execute(sul, query):
         tdiff = round(t - sul.last_time_receive)
         sul.last_time_receive = t
         # No times on data frames
-        if 'DATA' in p or 'REJECT' in p:
-            return p + ',0.0'
-        elif 'TIMEOUT' in p:
+        #return p
+        #if 'DATA' in p or 'REJECT' in p:
+        #    return p + ',0.0'
+        if 'TIMEOUT' in p:
             return p
         else:
-            return p + ',' + str(tdiff)
+            return p + ',0.0'
+        #else:
+        #    return p + ',' + str(tdiff)
 
 
 if __name__ == '__main__':
