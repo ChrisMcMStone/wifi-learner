@@ -153,12 +153,19 @@ def query_execute(sul, query):
         tdiff = round(t - sul.last_time_receive)
         sul.last_time_receive = t
         # No times on data frames
-        if 'DATA' in p or 'REJECT' in p:
-            return p + ',0.0'
-        elif 'TIMEOUT' in p:
+        #return p
+        #if 'DATA' in p or 'REJECT' in p:
+        #    return p + ',0.0'
+        if 'TIMEOUT' in p:
             return p
         else:
-            return p + ',' + str(tdiff)
+            return p + ',0.0'
+        #if 'DATA' in p or 'REJECT' in p:
+        #    return p + ',0.0'
+        #elif 'TIMEOUT' in p:
+        #    return p
+        #else:
+        #    return p + ',' + str(tdiff)
 
 
 if __name__ == '__main__':
@@ -205,7 +212,7 @@ if __name__ == '__main__':
 
                 elif mode == 'socket':
                     # Set up TCP socket with state machine learner software
-                    HOST = '127.0.0.1'
+                    HOST = '0.0.0.0'
                     PORT = 4444
                     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

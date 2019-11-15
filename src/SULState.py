@@ -39,7 +39,7 @@ class SULState:
 
         self._buildQueries()
         # Timeout for waiting for responses
-        self.TIMEOUT = 2.0
+        self.TIMEOUT = 4.0
         # Initialize state of handshake for supplicant
         self.eapol = EAPOLState(self.RSNinfo, self.psk,
                                 self.ssid, self.staMac, self.bssid)
@@ -64,13 +64,13 @@ class SULState:
         self.gtk_kde = None
         # Change MAC Address to prevent being blacklisted by the network
         # Using iproute2
-        #m = utility.utils.randomMAC()
-        #os.system('ip link set dev %s down' % (self.iface))
-        #os.system('ip link set dev %s address %s' % (self.iface, m))
-        #os.system('ip link set dev %s up' % (self.iface))
-        #self.staMac = str2mac(get_if_raw_hwaddr(self.iface)[1])
-        #print 'injector mac randomized, new mac: %s' % m
-        #self.eapol.staMacbin = a2b_hex(self.staMac.lower().replace(':',''))
+        m = utility.utils.randomMAC()
+        os.system('ip link set dev %s down' % (self.iface))
+        os.system('ip link set dev %s address %s' % (self.iface, m))
+        os.system('ip link set dev %s up' % (self.iface))
+        self.staMac = str2mac(get_if_raw_hwaddr(self.iface)[1])
+        print 'injector mac randomized, new mac: %s' % m
+        self.eapol.staMacbin = a2b_hex(self.staMac.lower().replace(':',''))
         self._buildQueries()
 
     # Send raw packet
