@@ -11,6 +11,7 @@ from utility.utils import randomMAC
 import SULInterface
 import getopt, logging, random, os, socket, signal, subprocess, sys, time, traceback
 import scapy.layers.dot11 as dot11
+import Logger
 
 # Show launch parameters
 # TODO extend this
@@ -128,7 +129,7 @@ def set_up_sul():
 
 # Pass on incoming abstract queries to the SUL. Return abstract string
 # representation of response + timestamp
-def query_execute(sul, query):
+def query_execute(sul, query, logger):
     '''
     Execute query, return result string
     '''
@@ -147,7 +148,10 @@ def query_execute(sul, query):
         t: time
         sc: packet? TODO
         '''
+        logger.new_input_msg(query)
         p, t, sc = SULInterface.query(sul, query)
+        logger.new_output_msg(p)
+
         if 'TIMEOUT' not in p and 'DATA' not in p:
             sul.last_sc_receive = sc
         tdiff = round(t - sul.last_time_receive)
@@ -180,6 +184,8 @@ if __name__ == '__main__':
 
     sul.sniffPipe = rdpipe
 
+    logger = Logger("test.log")
+
     # Fork process, one for sniffer, one for query execution
     pid = 1
     try:
@@ -207,7 +213,7 @@ if __name__ == '__main__':
 
                             query = query.strip()
                             print('QUERY: ' + query)
-                            response = query_execute(sul, query)
+                            response = query_execute(sul, query, logger)
                             print('RESPONSE: ' + response)
 
                 elif mode == 'socket':
@@ -235,7 +241,7 @@ if __name__ == '__main__':
                             continue
 
                         print('QUERY: ' + query)
-                        response = query_execute(sul, query)
+                        response = query_execute(sul, query, logger)
                         print('RESPONSE: ' + response)
                         if response:
                             conn.sendall(response+'\n')
