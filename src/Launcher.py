@@ -11,7 +11,7 @@ from utility.utils import randomMAC
 import SULInterface
 import getopt, logging, random, os, socket, signal, subprocess, sys, time, traceback
 import scapy.layers.dot11 as dot11
-import Logger
+from Logger import Logger
 
 # Show launch parameters
 # TODO extend this

@@ -7,7 +7,7 @@ class Logger(object):
     LOG_EV_OUT = "LOG_OUTPUT"
 
     def __init__(self, path):
-        self.handle = open(path, "r")
+        self.handle = open(path, "w")
 
     def __del__(self):
         if not self.handle.closed:
@@ -17,11 +17,11 @@ class Logger(object):
         return not bool(self.handle.errors)
 
     def new_input_msg(self, m):
-        self.handle.write("{} {} {}".format(int(round(time.time() * 1000)),
+        self.handle.write("{} {} {}\n".format(int(round(time.time() * 1000)),
                                             Logger.LOG_EV_IN,
                                             str(m)))
 
     def new_output_msg(self, m):
-        self.handle.write("{} {} {}".format(int(round(time.time() * 1000)),
+        self.handle.write("{} {} {}\n".format(int(round(time.time() * 1000)),
                                             Logger.LOG_EV_OUT,
                                             str(m)))
