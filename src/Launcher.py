@@ -46,16 +46,7 @@ def getRSNInfo(p):
 
 # Parse command line arguments, initialise required objects and
 # set WiFi interfaces to channel target AP is operating on.
-def set_up_sul():
-    try:
-        opts, args = getopt.getopt(sys.argv[1:], 'hi:t:s:p:m:g:u:')
-    except getopt.GetoptError, e:
-        print(str(e))
-        showhelp()
-        exit(1)
-
-    opts = dict([(k.lstrip('-'), v) for (k, v) in opts])
-
+def set_up_sul(opts):
     if ('h' in opts
             or 'i' not in opts
             or 't' not in opts
@@ -174,7 +165,16 @@ def query_execute(sul, query, logger):
 
 if __name__ == '__main__':
 
-    sul, mode, iface = set_up_sul()
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], 'hi:t:s:p:m:g:u:l:')
+    except getopt.GetoptError, e:
+        print(str(e))
+        showhelp()
+        exit(1)
+
+    opts = dict([(k.lstrip('-'), v) for (k, v) in opts])
+    
+    sul, mode, iface = set_up_sul(opts)
     # TODO: Add bpf filter, ether host = local mac or broadcast
     s = L2Socket(iface=iface, filter=None, nofilter=0, type=ETH_P_ALL)
 
@@ -184,7 +184,9 @@ if __name__ == '__main__':
 
     sul.sniffPipe = rdpipe
 
-    logger = Logger("test.log")
+    log_file = opts.get('l')
+
+    logger = Logger(log_file)
 
     # Fork process, one for sniffer, one for query execution
     pid = 1
@@ -204,19 +206,7 @@ if __name__ == '__main__':
             try:
                 # If we are executing a set of state queries, read from file
                 # and run one-by-one.
-                if mode == 'file':
-                    with open('queries', 'r') as f:
-                        for query in f:
-
-                            if 'QUIT' in query:
-                                sys.exit(0)
-
-                            query = query.strip()
-                            print('QUERY: ' + query)
-                            response = query_execute(sul, query, logger)
-                            print('RESPONSE: ' + response)
-
-                elif mode == 'socket':
+                if mode == 'socket':
                     # Set up TCP socket with state machine learner software
                     HOST = '0.0.0.0'
                     PORT = 4444
@@ -245,6 +235,18 @@ if __name__ == '__main__':
                         print('RESPONSE: ' + response)
                         if response:
                             conn.sendall(response+'\n')
+                else:
+                    with open(mode, 'r') as f:
+                        for query in f:
+
+                            if 'QUIT' in query:
+                                sys.exit(0)
+
+                            query = query.strip()
+                            print('QUERY: ' + query)
+                            response = query_execute(sul, query, logger)
+                            print('RESPONSE: ' + response)
+
             except SystemExit:
                 'nop'
 
