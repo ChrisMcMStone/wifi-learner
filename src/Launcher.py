@@ -127,7 +127,7 @@ def query_execute(sul, query, logger):
 
     if 'RESET' in query:
         sul.reset()
-
+        
         # Comment out 3 lines below this to enforce reset before association
         # resp = ''
         # while 'ACCEPT' not in resp:
@@ -141,7 +141,6 @@ def query_execute(sul, query, logger):
         '''
         logger.new_input_msg(query)
         p, t, sc = SULInterface.query(sul, query)
-        logger.new_output_msg(p)
 
         if 'TIMEOUT' not in p and 'DATA' not in p:
             sul.last_sc_receive = sc
@@ -152,9 +151,12 @@ def query_execute(sul, query, logger):
         #if 'DATA' in p or 'REJECT' in p:
         #    return p + ',0.0'
         if 'TIMEOUT' in p:
-            return p
+            resp = p
         else:
-            return p + ',0.0'
+            resp = p + ',0.0'
+            
+        logger.new_output_msg(resp)
+        return resp
         #if 'DATA' in p or 'REJECT' in p:
         #    return p + ',0.0'
         #elif 'TIMEOUT' in p:
@@ -167,7 +169,7 @@ if __name__ == '__main__':
 
     try:
         opts, args = getopt.getopt(sys.argv[1:], 'hi:t:s:p:m:g:u:l:')
-    except getopt.GetoptError, e:
+    except getopt.GetoptError as e:
         print(str(e))
         showhelp()
         exit(1)
@@ -183,10 +185,11 @@ if __name__ == '__main__':
     wrpipe = os.fdopen(wrpipe, 'w')
 
     sul.sniffPipe = rdpipe
-
-    log_file = opts.get('l')
-
-    logger = Logger(log_file)
+    
+    logger = None
+    if 'l' in opts:
+        log_file = opts.get('l')
+        logger = Logger(log_file)
 
     # Fork process, one for sniffer, one for query execution
     pid = 1
@@ -231,6 +234,12 @@ if __name__ == '__main__':
                             continue
 
                         print('QUERY: ' + query)
+                        
+                        # Create a new log with filepath specified at end of RESET query string
+                        if "RESET" in query and query[6:] != '':
+                            print("creating new logger at file: " + query[6:])
+                            logger = Logger(query[6:])
+            
                         response = query_execute(sul, query, logger)
                         print('RESPONSE: ' + response)
                         if response:

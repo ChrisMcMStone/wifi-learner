@@ -20,8 +20,10 @@ class Logger(object):
         self.handle.write("{} {} {}\n".format(int(round(time.time() * 1000)),
                                             Logger.LOG_EV_IN,
                                             str(m)))
+        self.handle.flush()
 
     def new_output_msg(self, m):
         self.handle.write("{} {} {}\n".format(int(round(time.time() * 1000)),
                                             Logger.LOG_EV_OUT,
                                             str(m)))
+        self.handle.flush()
