@@ -28,7 +28,7 @@ class SULState:
         self.last_time_receive = 0.0
         # Required for EAPOL frames
         self.Anonce = '00' * 32
-        self.ReplayCounter = '00' * 8
+        self.ReplayCounter = 0
         self.RSNinfo     = rsnInfo[:36] + '0000'
         self.RSNinfoReal = rsnInfo[:36] + '0000'
         # Required for ARP requests
@@ -56,7 +56,7 @@ class SULState:
         self.send(self.queries['Deauth'], count=5)
         self.last_time_receive = time.time()
         self.Anonce = '00' * 32
-        self.ReplayCounter = '00' * 8
+        self.ReplayCounter = 0
         self.gtk_kde = None
         # Change MAC Address to prevent being blacklisted by the network
         # Using iproute2

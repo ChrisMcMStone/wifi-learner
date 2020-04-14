@@ -112,6 +112,10 @@ def query(sul, cmd):
                 elif 'RC' in x:
                     if x[3:] == '>':
                         rc = '11'*8
+                    elif x[3] == "+":
+                        rc += int(x[4:])
+                    elif x[3] == "-":
+                        rc -= int(x[4:])
                 elif 'KF' in x:
                     flags = x[3:7]
                     p = 0 if flags[0]=='x' else 1
@@ -159,6 +163,10 @@ def query(sul, cmd):
                 elif 'RC' in x:
                     if x[3:] == '>':
                         rc = '11'*8
+                    elif x[3] == "+":
+                        rc += int(x[4:])
+                    elif x[3] == "-":
+                        rc -= int(x[4:])
                 elif 'NONC' in x:
                     if x[5:] == 'W':
                         nonce = '10'*32
@@ -271,6 +279,19 @@ def assoc(sul, rsn=None):
         return 'REJECT', assoc_response.time, 0
 
 
+def payload_to_iv_ccmp(payload):
+    iv0 = payload[0]
+    iv1 = payload[1]
+    wepdata = payload[4:8]
+    return ord(iv0) + (ord(iv1) << 8) + (struct.unpack(">I", wepdata)[0] << 16)
+
+def payload_to_iv_tkip(payload):
+    iv0 = payload[2]
+    iv1 = payload[0]
+    wepdata = payload[4:8]
+    return ord(iv0) + (ord(iv1) << 8) + (struct.unpack(">I", wepdata)[0] << 16)
+
+
 # Parse packet to construct abstract string to feed back to learner
 def genAbstractOutput(sul, p):
 
@@ -286,6 +307,9 @@ def genAbstractOutput(sul, p):
             and p.getlayer(Dot11).FCfield & 0x40):
 
         dec = None
+
+        # This assumes AES is used. It is overriden if TKIP decryption succeeds.
+        iv = payload_to_iv_ccmp(p[Raw].load)
 
         # Try decrypting with AES
         try:
@@ -306,9 +330,20 @@ def genAbstractOutput(sul, p):
                     raise ValueError('TKIP Decryption Failed')
                 # print dec.summary()
                 pstring = 'TKIP_DATA'
+
+                iv = payload_to_iv_tkip(p[Raw].load)
+
             except Exception as e:
                 print(e)
                 pstring = 'AES_DATA'
+
+        # Track if packet number was 1 or something higher. This allows
+        # the detection of key reinstallations that reset the packet
+        # number back to 1.
+        if iv == 1:
+            pstring += "_1"
+        else:
+            pstring += "_n"
 
         sc = (p.SC >> 4)
         sul.sendAck()
