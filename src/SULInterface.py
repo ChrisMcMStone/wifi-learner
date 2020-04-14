@@ -67,6 +67,10 @@ def query(sul, cmd):
     if 'DELAY' in cmd:
         response = psniff(sul, lambda x: _filter(sul, x))
         return genAbstractOutput(sul, response)
+    
+    if 'AUTH' in cmd:
+        resp, t, sc = auth(sul)
+        return resp, t, sc
 
     if 'ASSOC' in cmd:
         if len(cmd) > 5:
@@ -76,7 +80,7 @@ def query(sul, cmd):
 
         if 'ACCEPT' in resp:
             sul.last_time_receive = t
-            # TODO Might need to force wait for start of handshake
+            # wait for 4 way handshake to begin
             resp, t, sc = query(sul, 'DELAY')
             return resp, t, sc
         else:
@@ -222,59 +226,50 @@ def query(sul, cmd):
 
     return query(sul, 'DELAY')
 
+
+def auth(sul):
+    sul.last_sc_receive = 0
+    print '$ Attempting to authenticate with AP.'
+    # Send and recieve Auth frames
+    sul.send(sul.queries['Auth'])
+    auth_response = psniff(sul,
+                            lambda x: (x.haslayer(Dot11Auth)
+                                        and x.getlayer(Dot11Auth).status == 0
+                                        and x.addr1 == sul.staMac))
+    if not auth_response:
+        print '$ Failed to Authenticate, returning timeout...'
+        return 'TIMEOUT', 0, 0
+        # sul.send(sul.queries['Deauth'], count=5)
+        # time.sleep(1)
+        # continue
+    print '$ Authenticated.'
+    
+    return 'AUTH_ACCEPT', auth_response.time, 0
+    
 # Associate with the AP to kick off the 4-way handshake. This method deals with the
 # inevitable case that the AP will take a while to respond and as such requires multiple attempts.
 def assoc(sul, rsn=None):
 
-    sul.last_sc_receive = 0
-
-    print '$ Attempting to associate with AP.'
-    while True:
-        #time.sleep(1) for iphone which need delay between attempts
-        try:
-            # Send and recieve Auth frames
-            sul.send(sul.queries['Auth'])
-            auth_response = psniff(sul,
-                                   lambda x: (x.haslayer(Dot11Auth)
-                                              and x.getlayer(Dot11Auth).status == 0
-                                              and x.addr1 == sul.staMac))
-            if not auth_response:
-                print '$ Failed to Authenticate, retrying...'
-                sul.send(sul.queries['Deauth'], count=5)
-                time.sleep(1)
-                continue
-            print '$ Authenticated.'
-
-            # Send association request using the chosen RSN element (cipher suite)
-            if rsn == None:
-                sul.send(sul.queries['AssoReq'] / Dot11Elt(ID='RSNinfo', info=a2b_hex(sul.RSNinfoReal)))
-            else:
-                sul.send(sul.queries['AssoReq'] / Dot11Elt(ID='RSNinfo', info=a2b_hex(sul.rsnvals[rsn]+'0000')))
+    # Send association request using the chosen RSN element (cipher suite)
+    if rsn == None:
+        sul.send(sul.queries['AssoReq'] / Dot11Elt(ID='RSNinfo', info=a2b_hex(sul.RSNinfoReal)))
+    else:
+        sul.send(sul.queries['AssoReq'] / Dot11Elt(ID='RSNinfo', info=a2b_hex(sul.rsnvals[rsn]+'0000')))
 
 
-            assoc_response = psniff(sul, lambda x: (x.haslayer(Dot11AssoResp)
-                                                    and x.addr1 == sul.staMac))
-            if not assoc_response:
-                print('$ Failed to Associate, retrying...')
-                sul.send(sul.queries['Deauth'], count=5)
-                time.sleep(1)
-                continue
-            if assoc_response.getlayer(Dot11AssoResp).status == 0:
-                print('$ Associated.')
-                sul.last_sc_receive = -1 # TODO this might be if EAP
-                return 'ACCEPT', assoc_response.time, 0
-            else:
-                print('$ Association rejected. Status code %s'
-                      % str(assoc_response.getlayer(Dot11AssoResp).status))
-                return 'REJECT', assoc_response.time, 0
+    assoc_response = psniff(sul, lambda x: (x.haslayer(Dot11AssoResp)
+                                            and x.addr1 == sul.staMac))
+    if not assoc_response:
+        print('$ Failed to Associate, returning timeout...')
+        return 'TIMEOUT', 0, 0
+    if assoc_response.getlayer(Dot11AssoResp).status == 0:
+        print('$ Associated.')
+        return 'ACCEPT', assoc_response.time, 0
+    else:
+        print('$ Association rejected. Status code %s'
+                % str(assoc_response.getlayer(Dot11AssoResp).status))
+        return 'REJECT', assoc_response.time, 0
 
-        except Exception as e:
-            print('ERROR in association')
-            print(e)
-            traceback.print_exc()
-            continue
-
-    return 'TIMEOUT', 0, 0
 
 # Parse packet to construct abstract string to feed back to learner
 def genAbstractOutput(sul, p):

@@ -256,7 +256,5 @@ if __name__ == '__main__':
             except:
                 traceback.print_exc()
     finally:
-        if os.getpid() == sniffer_pid:
-            os.kill(query_pid, signal.SIGKILL) 
-        else:
+        if os.getpid() != sniffer_pid:
             os.kill(sniffer_pid, signal.SIGKILL) 
