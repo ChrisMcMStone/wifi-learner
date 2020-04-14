@@ -43,10 +43,6 @@ class SULState:
         # Initialize state of handshake for supplicant
         self.eapol = EAPOLState(self.RSNinfo, self.psk,
                                 self.ssid, self.staMac, self.bssid)
-        # Initialize state of EAP message
-        if user_id:
-            self.eap = EAPState(self.staMac, self.bssid, user_id, self, anon_id)
-            self.tls = None
 
         # Initialize crypto handlers
         self.aesHandler = HandleAES()

@@ -39,40 +39,6 @@ def _filter(sul, x):
     # Not Null frame
     # Not IP packet destined for broadcast/multicast IP
 
-    #f print 'RPT = %f' % x.time
-    # print 'RSC = ' + str(x.SC)
-    # TODO remove, assoc and auth frame filtering (need to deal with reset SC when eapol handshake starts).
-
-    #try:
-    #    (x[Dot11][EAP].show())
-    #    print('######### PACKET START ##############')
-    #    print(x.show())
-    #    print('######### PACKET END  ##############')
-    #    print('######### PACKET TEST START  ##############')
-    #    print(x is not None)
-    #    print(x.time > sul.last_time_receive)
-    #    print(x.addr1 == sul.staMac)
-    #    print(x.type != 1)
-    #    print(not (x.type == 0 and x.subtype == 1))
-    #    print(not (x.type == 0 and x.subtype == 11))
-    #    print(not (x.type == 0 and x.subtype == 9))
-    #    print(not (x.type == 0 and x.subtype == 13))
-    #    print(not (x.type == 2 and x.subtype == 4))
-    #    print((x.SC >> 4) > sul.last_sc_receive)
-    #    print(not (x.haslayer(IP) and _isBroadCastIP(x.getlayer(IP).dst)))
-    #    print(not ((str(x.addr3)[:8] == '01:00:5e') or
-    #         (str(x.addr1)[:8] == '01:00:5e') or
-    #         (str(x.addr3)[:5] == '33:33') or
-    #         (str(x.addr1)[:5] == '33:33') or
-    #         (str(x.addr3) == 'ff:ff:ff:ff:ff:ff') or
-    #         (str(x.addr1) == 'ff:ff:ff:ff:ff:ff')))
-    #    print('######### PACKET TEST END  ##############')
-    #    print('SC = %s, last_sc_receive = %s'
-    #          % (str(x.SC), str(sul.last_sc_receive)))
-    #    print('############# SC ##################')
-    #except IndexError:
-    #     ''
-
     filt = (x is not None and
             x.time > sul.last_time_receive and
             x.addr1 == sul.staMac and
@@ -83,7 +49,6 @@ def _filter(sul, x):
             not (x.type == 0 and x.subtype == 13) and
             not (x.type == 2 and x.subtype == 4) and
             ((x.SC >> 4) > sul.last_sc_receive) and
-            not (x.haslayer(IP) and _isBroadCastIP(x.getlayer(IP).dst)) and
             not ((str(x.addr3)[:8] == '01:00:5e') or
                  (str(x.addr1)[:8] == '01:00:5e') or
                  (str(x.addr3)[:5] == '33:33') or
@@ -92,24 +57,8 @@ def _filter(sul, x):
                  (str(x.addr1) == 'ff:ff:ff:ff:ff:ff')))
            #not (x.haslayer(Dot11WEP) and _checkDecryptBroadcast(sul, x))
 
-    #if filt:
-    #    print('## SC value: %s'
-    #          % str(x.SC >> 4))
-    #    print('## Last SC value: %s'
-    #          % str(sul.last_sc_receive))
-
     return filt
 
-# Used for ignoring broadcast data
-def _isBroadCastIP(ipaddr):
-    #Probably broadcast
-    if str(ipaddr)[-3:] == '255':
-        return True
-    else:
-        x = int(str(ipaddr[:3]))
-        if x >= 224 and x <= 239:
-            return True
-    return False
 
 # Parse string representation of query to construct corresponding concrete
 # message with parameters.
@@ -264,31 +213,6 @@ def query(sul, cmd):
         addr3 = 'ff:ff:ff:ff:ff:ff'
         sul.send(RadioTap()/Dot11()/sul.queries['ARP'],addr1=addr1, addr2=addr2, addr3=addr3)
 
-    elif 'EAP_RESP' in cmd:
-        # Extract parameters, format e.g. EAP_RESP(INFO=ID),
-        # EAP_RESP(ENC_TYPE=TTLS) Only TTLS supported atm
-
-        params = cmd[8:-1].split('=')
-        if 'INFO' in params[0]:
-            if 'ID' in params[1]:
-                packet = sul.eap.id_resp()
-                sul.send(packet)
-        elif 'ENC_TYPE' in params[0]:
-            packet = sul.eap.enc_resp(params[1])
-            sul.send(packet)
-
-
-    elif 'EAP_TTLS' in cmd:
-        # EAP_TTLS(CLIENT_HELLO)
-        param = cmd[8:-1]
-        if 'CLIENT_HELLO' in param:
-            packet = sul.eap.client_hello()
-            sul.tlsstate = TLSState(packet, sul)
-            sul.send(packet)
-        elif 'CLIENT_KEY_EX' in param:
-            packet = sul.tlsstate.client_key_exchange()
-            sul.send(packet)
-
     else:
         message = sul.queries[cmd]
         if message:
@@ -395,15 +319,6 @@ def genAbstractOutput(sul, p):
         sul.sendAck()
         return pstring, p.time, sc
 
-    # try eap
-    try:
-        eapp = p[EAP]
-        sul.sendAck()
-        return parse_eap(sul, p,eapp)
-
-    except IndexError:
-        'Not an EAP packet'
-
     # If EAPOL handshake message
     p = p[Dot11]
     ep = utility.utils.getEapolLayer(p)
@@ -432,91 +347,3 @@ def _parseResponse(p, sul):
         if 'Dot11' in p.summary():
             return p.summary().split('Dot11', 1)[1].split(' ', 1)[0]
         return p.summary()
-
-# parse packet, EAP layer
-def parse_eap(sul, p, eapp):
-        pstring = 'EAP'
-        sul.eap.count_id = eapp.id
-
-        # https://www.iana.org/assignments/eap-numbers/eap-numbers.xml#eap-numbers-1
-        if eapp.code == 1 :
-
-            try: # TODO When extending to other types (eg. eap-pwd or eap-tls)
-                 # this condition will have to be properly created
-                server_hello = bool(p.M)
-            except:
-                server_hello = False
-
-            if not server_hello:
-                pstring += '_REQUEST'
-                # Asking for username
-                pstring += '('
-                # EAP types is from scapy eap.py TODO clean namespace
-                pstring += 'TYPE=%s(%s)' % (eapp.type, eap_types[eapp.type].upper())
-                pstring += ')'
-            else:
-                # Start of server hello message
-                pstring +='_TTLS'
-                pstring += '('
-                sh_data = [] # Server hello data
-
-                while True:
-                    # Save current packet data and read next packet while
-                    # more bit is set
-
-                    # Get more bit
-                    try:
-                        server_hello = bool(p.M)
-                    except:
-                        server_hello = False
-
-                    # Save Data
-                    sh_data.append(eapp.data)
-
-                    # Send ACK
-                    sul.send(sul.eap.sh_resp())
-
-                    # Read next packet and loop
-                    sul.last_sc_receive = (p.SC >> 4)
-                    p = psniff(sul, lambda x: _filter(sul, x))
-
-                    eapp = p[EAP]
-                    sul.eap.count_id = eapp.id
-
-                    # If more bit
-                    if not server_hello:
-                        break
-
-                # Construct TLS packet and extract server public key
-                tls_packet = TLS(''.join(sh_data))
-                sul.tlsstate.server_hello(tls_packet)
-
-                # pstring += ('|CONTENT=%s' % ','.join(
-                #     map(lambda x: TLS_CONTENT_TYPES[x.content_type].upper(),
-                #         sul.tlsstate.server_hello.records)))
-
-                pstring += ('HANDSHAKES=%s' % ','.join(
-                    map(lambda x: TLS_HANDSHAKE_TYPES[x.handshakes[0].type].upper(),
-                        sul.tlsstate.server_hello.records)))
-
-                # pstring += ('|PK=%s'
-                #             % base64.b16encode(str(sul.tlsstate.server.modulus)))
-                pstring += ')'
-
-        elif eapp.code == 2 :
-            pstring += '_RESPONSE'
-        elif eapp.code == 3 :
-            pstring += '_SUCCESS'
-        elif eapp.code == 4 :
-            pstring += '_FAILURE'
-        elif eapp.code == 5 :
-            pstring += '_INITIATE'
-        elif eapp.code == 6 :
-            pstring += '_FINISH'
-        else:
-            pstring += '_INVALID_CODE'
-
-
-        sc = (p.SC >> 4)
-
-        return pstring, p.time, sc

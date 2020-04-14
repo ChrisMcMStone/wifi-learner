@@ -139,7 +139,7 @@ def query_execute(sul, query, logger):
         t: time
         sc: packet? TODO
         '''
-        logger.new_input_msg(query)
+        if logger is not None: logger.new_input_msg(query)
         p, t, sc = SULInterface.query(sul, query)
 
         if 'TIMEOUT' not in p and 'DATA' not in p:
@@ -155,7 +155,7 @@ def query_execute(sul, query, logger):
         else:
             resp = p + ',0.0'
             
-        logger.new_output_msg(resp)
+        if logger is not None: logger.new_output_msg(resp)
         return resp
         #if 'DATA' in p or 'REJECT' in p:
         #    return p + ',0.0'
@@ -190,6 +190,9 @@ if __name__ == '__main__':
     if 'l' in opts:
         log_file = opts.get('l')
         logger = Logger(log_file)
+    
+    sniffer_pid = 0
+    query_pid = 0
 
     # Fork process, one for sniffer, one for query execution
     pid = 1
@@ -197,16 +200,14 @@ if __name__ == '__main__':
         pid = os.fork()
         # This process sniffs for WiFi frames, writing them into a shared buffer
         if pid == 0:
-            try:
-                msniff(s, rdpipe, wrpipe, None)
-            except:
-                print('ERROR with sniffing process')
-                raise
+            sniffer_pid = os.getpid()
+            msniff(s, rdpipe, wrpipe, None)
         elif pid < 0:
             print('ERROR fork failed')
         else:
             wrpipe.close()
             try:
+                query_pid = os.getpid()
                 # If we are executing a set of state queries, read from file
                 # and run one-by-one.
                 if mode == 'socket':
@@ -247,21 +248,15 @@ if __name__ == '__main__':
                 else:
                     with open(mode, 'r') as f:
                         for query in f:
-
-                            if 'QUIT' in query:
-                                sys.exit(0)
-
                             query = query.strip()
                             print('QUERY: ' + query)
                             response = query_execute(sul, query, logger)
                             print('RESPONSE: ' + response)
 
-            except SystemExit:
-                'nop'
-
             except:
                 traceback.print_exc()
-            #finally:
-            #   os.waitpid(pid, 0)
     finally:
-        sys.exit()
+        if os.getpid() == sniffer_pid:
+            os.kill(query_pid, signal.SIGKILL) 
+        else:
+            os.kill(sniffer_pid, signal.SIGKILL) 
