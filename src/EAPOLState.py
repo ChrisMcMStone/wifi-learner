@@ -11,7 +11,7 @@ class EAPOLState:
     def __init__(self, RSNinfo, psk, ssid, staMac, apMac):
 
         # Fixed supplicant nonce
-        self.Snonce = a2b_hex('10'*32)
+        self.Snonce = os.urandom(32)
 
         # WPA Key data
         self.RSNinfo = RSNinfo
