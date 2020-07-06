@@ -5,7 +5,6 @@ from binascii import *
 from EAPOLState import EAPOLState
 from Cryptodome.Cipher import AES
 import cPickle,os,sys,time,subprocess
-from TLSState import TLSState
 import traceback
 
 

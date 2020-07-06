@@ -2,7 +2,6 @@ from scapy.all import *
 import struct
 from binascii import *
 from EAPOLState import EAPOLState
-from EAPState import EAPState
 from crypto.HandleTKIP import *
 from crypto.HandleAES import *
 import time
