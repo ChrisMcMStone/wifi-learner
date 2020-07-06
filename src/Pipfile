@@ -8,7 +8,7 @@ pycryptodomex = "==3.4.5"
 cryptography = "*"
 matplotlib = "*"
 ipython = "*"
-scapy = "==2.4.0"
+scapy = "==2.4.1"
 # pycrypto = {editable = true,path = "./../lib/pycrypto-2.7a1"}
 
 [dev-packages]
