@@ -125,6 +125,10 @@ def query_execute(sul, query, logger):
     Execute query, return result string
     '''
 
+    if 'SLOWRESET' in query:
+        # TODO
+        pass
+
     if 'RESET' in query:
         sul.reset()
         
@@ -237,9 +241,13 @@ if __name__ == '__main__':
                         print('QUERY: ' + query)
                         
                         # Create a new log with filepath specified at end of RESET query string
-                        if "RESET" in query and query[6:] != '':
-                            print("creating new logger at file: " + query[6:])
-                            logger = Logger(query[6:])
+                        if "RESET" in query:
+                            log_index = query.index(':')
+                            if log_index >= 0:
+                                log_name = query[log_index+1:]
+                                if log_name != '':
+                                    print("creating new logger at file: " + log_name)
+                                    logger = Logger(log_name)
             
                         response = query_execute(sul, query, logger)
                         print('RESPONSE: ' + response)
