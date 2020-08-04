@@ -264,18 +264,17 @@ def assoc(sul, rsn=None):
         sul.send(sul.queries['AssoReq'] / Dot11Elt(ID='RSNinfo', info=a2b_hex(sul.rsnvals[rsn]+'0000')))
 
 
-    assoc_response = psniff(sul, lambda x: (x.haslayer(Dot11AssoResp)
-                                            and x.addr1 == sul.staMac))
-    if not assoc_response:
-        print('$ Failed to Associate, returning timeout...')
-        return 'TIMEOUT', 0, 0
-    if assoc_response.getlayer(Dot11AssoResp).status == 0:
-        print('$ Associated.')
-        return 'ACCEPT', assoc_response.time, 0
+    assoc_response = psniff(sul, lambda x: x.addr1 == sul.staMac)
+    if assoc_response.haslayer(Dot11AssoResp):
+        if assoc_response.getlayer(Dot11AssoResp).status == 0:
+            print('$ Associated.')
+            return 'ACCEPT', assoc_response.time, 0
+        else:
+            print('$ Association rejected. Status code %s'
+                    % str(assoc_response.getlayer(Dot11AssoResp).status))
+            return 'REJECT', assoc_response.time, 0
     else:
-        print('$ Association rejected. Status code %s'
-                % str(assoc_response.getlayer(Dot11AssoResp).status))
-        return 'REJECT', assoc_response.time, 0
+        return genAbstractOutput(sul, assoc_response)
 
 
 def payload_to_iv_ccmp(payload):
