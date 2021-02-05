@@ -1,4 +1,4 @@
 pycryptodome==3.9.7
-scapy==2.4.0
+scapy==2.4.1
 pycryptodomex==3.4.5
 monotonic
